@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090d0b">
+  <title>REVOLUTIONE — RP Workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#" data-page="overview">
+        <span class="brand-mark"><span></span><span></span><span></span></span>
+        <span class="brand-name">revolutione<span>®</span></span>
+      </a>
+      <div class="workspace-switch">
+        <div class="workspace-icon">LS</div>
+        <div class="workspace-copy"><strong>Los Santos</strong><small>Government workspace</small></div>
+        <span class="chevron">⌄</span>
+      </div>
+      <div class="nav-label">WORKSPACE</div>
+      <nav class="main-nav">
+        <button class="nav-item active" data-page="overview"><i>◫</i><span>Обзор</span><kbd>⌘ 1</kbd></button>
+        <button class="nav-item" data-page="documents"><i>▤</i><span>Документы</span><b class="nav-count" id="docNavCount">8</b></button>
+        <button class="nav-item" data-page="templates"><i>▧</i><span>Шаблоны</span></button>
+        <button class="nav-item" data-page="laws"><i>§</i><span>Законодательство</span></button>
+        <button class="nav-item" data-page="archive"><i>▣</i><span>Архив</span></button>
+      </nav>
+      <div class="nav-label nav-label-spaced">ORGANIZATION</div>
+      <nav class="main-nav">
+        <button class="nav-item" data-page="members"><i>♧</i><span>Сотрудники</span></button>
+        <button class="nav-item" data-page="activity"><i>◷</i><span>Журнал действий</span></button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="upgrade-card">
+          <div class="upgrade-orb"></div>
+          <span class="eyebrow">REVOLUTIONE AI</span>
+          <strong>Работайте быстрее</strong>
+          <p>Умный помощник для документов и законов.</p>
+          <button class="upgrade-link" data-page="assistant">Открыть ассистента <span>↗</span></button>
+        </div>
+        <button class="profile-mini" id="profileButton">
+          <div class="avatar">AK</div>
+          <div><strong>Alex Karter</strong><small>Администратор</small></div>
+          <span class="dots">•••</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <button class="mobile-menu" id="mobileMenu" aria-label="Открыть меню">☰</button>
+        <div class="breadcrumbs"><span>Los Santos</span><b>/</b><strong id="crumb">Обзор</strong></div>
+        <div class="top-actions">
+          <div class="server-status"><span></span> Все системы работают</div>
+          <button class="icon-button" id="helpButton" title="Помощь">?</button>
+          <button class="icon-button notification-button" id="notificationButton" title="Уведомления">♧<i></i></button>
+          <div class="top-avatar">AK</div>
+        </div>
+      </header>
+
+      <section class="page active-page" id="page-overview">
+        <div class="hero-row">
+          <div>
+            <div class="eyebrow green">СРЕДА УПРАВЛЕНИЯ · LOS SANTOS</div>
+            <h1>Добро пожаловать,<br><span>Alex.</span></h1>
+            <p class="hero-subtitle">Всё важное по организации — в одном пространстве.</p>
+          </div>
+          <div class="hero-date"><span class="live-dot"></span><span id="currentDate">СРЕДА, 05 НОЯБРЯ 2026</span></div>
+        </div>
+        <div class="hero-banner">
+          <div class="banner-lines"></div>
+          <div class="banner-content">
+            <div class="banner-tag"><span></span> YOUR WORKSPACE. REIMAGINED.</div>
+            <h2>Порядок в документах.<br><em>Контроль в каждом действии.</em></h2>
+            <p>Создавайте, согласовывайте и храните документы без лишней рутины.</p>
+            <button class="primary-button" id="bannerCreate">Создать документ <span>↗</span></button>
+          </div>
+          <div class="banner-art"><div class="art-ring ring-one"></div><div class="art-ring ring-two"></div><div class="art-core">R<span>.</span></div><div class="art-caption">EST. 2026<br>LOS SANTOS</div></div>
+        </div>
+        <div class="section-heading">
+          <div><span class="eyebrow">В ЦИФРАХ</span><h2>Сводка организации</h2></div>
+          <span class="period-label">ЗА ВСЁ ВРЕМЯ <span>⌄</span></span>
+        </div>
+        <div class="stats-grid">
+          <article class="stat-card"><div class="stat-top"><span>Всего документов</span><span class="stat-icon">▤</span></div><strong id="totalDocs">128</strong><div class="stat-foot"><span class="trend">↗ 12%</span> <span>к прошлой неделе</span></div><div class="stat-spark spark-a"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+          <article class="stat-card"><div class="stat-top"><span>На согласовании</span><span class="stat-icon">◷</span></div><strong id="pendingDocs">06</strong><div class="stat-foot"><span class="neutral">Внимание</span> <span>требуют решения</span></div><div class="stat-spark spark-b"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+          <article class="stat-card"><div class="stat-top"><span>Сотрудники</span><span class="stat-icon">♧</span></div><strong>24</strong><div class="stat-foot"><span class="trend">↗ 2</span> <span>за этот месяц</span></div><div class="stat-spark spark-c"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+          <article class="stat-card"><div class="stat-top"><span>Активные шаблоны</span><span class="stat-icon">▧</span></div><strong>18</strong><div class="stat-foot"><span class="neutral">Обновлено</span> <span>3 дня назад</span></div><div class="stat-spark spark-d"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+        </div>
+        <div class="content-grid">
+          <section class="panel recent-panel">
+            <div class="panel-heading"><div><span class="eyebrow">ПОСЛЕДНИЕ ИЗМЕНЕНИЯ</span><h3>Последние документы</h3></div><button class="text-button" data-page="documents">Все документы <span>→</span></button></div>
+            <div class="table-wrap"><table><thead><tr><th>НАЗВАНИЕ</th><th>АВТОР</th><th>ДАТА</th><th>СТАТУС</th><th></th></tr></thead><tbody id="recentTable"></tbody></table></div>
+          </section>
+          <section class="panel activity-panel">
+            <div class="panel-heading"><div><span class="eyebrow">LIVE FEED</span><h3>Активность</h3></div><span class="live-label"><i></i> LIVE</span></div>
+            <div class="activity-list" id="activityList">
+              <div class="activity-item"><div class="activity-avatar av-green">AK</div><div><p><strong>Alex Karter</strong> создал документ</p><span>Приказ №042 · 12 минут назад</span></div></div>
+              <div class="activity-item"><div class="activity-avatar av-purple">JM</div><div><p><strong>James Miller</strong> согласовал документ</p><span>Рапорт о назначении · 38 минут назад</span></div></div>
+              <div class="activity-item"><div class="activity-avatar av-blue">SC</div><div><p><strong>Sarah Connor</strong> обновила шаблон</p><span>Заявление · 1 час назад</span></div></div>
+              <div class="activity-item"><div class="activity-avatar av-orange">RK</div><div><p><strong>Robert King</strong> добавил комментарий</p><span>Постановление №018 · 2 часа назад</span></div></div>
+            </div>
+            <button class="activity-more" data-page="activity">Открыть журнал <span>↗</span></button>
+          </section>
+        </div>
+        <footer class="footer"><span>© 2026 REVOLUTIONE</span><span>BUILT FOR ORDER. DESIGNED FOR PEOPLE.</span><span>v0.9.0 — BETA</span></footer>
+      </section>
+
+      <section class="page" id="page-documents">
+        <div class="page-title-row"><div><div class="eyebrow green">WORKSPACE / DOCUMENTS</div><h1>Документы<span class="title-count" id="documentsCount">08</span></h1><p>Управляйте документами организации в одном месте.</p></div><button class="primary-button" id="createDocument"><span>＋</span> Новый документ</button></div>
+        <div class="toolbar"><div class="search-box"><span>⌕</span><input id="documentSearch" placeholder="Поиск по названию или номеру..."></div><div class="filter-tabs" id="docFilters"><button class="selected" data-filter="Все">Все <span id="allCount">8</span></button><button data-filter="На согласовании">На согласовании</button><button data-filter="Подписан">Подписанные</button><button data-filter="Черновик">Черновики</button></div><button class="square-button" id="sortDocuments" title="Сортировать">↕</button></div>
+        <section class="panel documents-panel"><div class="table-wrap"><table class="full-table"><thead><tr><th>ДОКУМЕНТ</th><th>ТИП</th><th>СОЗДАН</th><th>ОТВЕТСТВЕННЫЙ</th><th>СТАТУС</th><th></th></tr></thead><tbody id="documentsTable"></tbody></table></div><div class="table-bottom"><span id="tableInfo">Показано 8 из 8 документов</span><span>Страница 1 из 1 <button class="pagination-arrow">←</button><button class="pagination-arrow">→</button></span></div></section>
+      </section>
+
+      <section class="page" id="page-templates">
+        <div class="page-title-row"><div><div class="eyebrow green">WORKSPACE / LIBRARY</div><h1>Библиотека шаблонов</h1><p>Готовые формы для повседневной работы организации.</p></div><button class="primary-button" id="newTemplate">＋ Создать шаблон</button></div>
+        <div class="template-grid" id="templateGrid"></div>
+      </section>
+
+      <section class="page" id="page-laws">
+        <div class="page-title-row"><div><div class="eyebrow green">KNOWLEDGE BASE</div><h1>Законодательство</h1><p>Нормативная база сервера Los Santos.</p></div><button class="secondary-button" id="addLaw">＋ Добавить источник</button></div>
+        <div class="law-search"><span>⌕</span><input id="lawSearch" placeholder="Найти закон, статью или ключевое слово..."><kbd>⌘ K</kbd></div>
+        <div class="law-layout"><div class="law-categories"><span class="eyebrow">КАТЕГОРИИ</span><button class="law-category active">Все документы <b>24</b></button><button class="law-category">Конституция <b>01</b></button><button class="law-category">Уголовный кодекс <b>12</b></button><button class="law-category">Административный кодекс <b>08</b></button><button class="law-category">Внутренние уставы <b>03</b></button></div><div class="law-results" id="lawResults"></div></div>
+      </section>
+
+      <section class="page" id="page-archive">
+        <div class="page-title-row"><div><div class="eyebrow green">STORAGE / ARCHIVE</div><h1>Архив</h1><p>Документы, завершившие свой рабочий цикл.</p></div></div>
+        <div class="empty-state"><div class="empty-icon">▣</div><h3>Архив пока пуст</h3><p>Завершённые документы будут автоматически появляться здесь.</p></div>
+      </section>
+
+      <section class="page" id="page-members">
+        <div class="page-title-row"><div><div class="eyebrow green">ORGANIZATION / TEAM</div><h1>Сотрудники</h1><p>Участники рабочего пространства и их роли.</p></div><button class="primary-button" id="inviteMember">＋ Пригласить</button></div>
+        <div class="member-grid">
+          <article class="member-card"><div class="member-avatar av-green">AK</div><div><strong>Alex Karter</strong><span>Администратор</span><small><i></i> В сети</small></div><b>OWNER</b></article>
+          <article class="member-card"><div class="member-avatar av-purple">JM</div><div><strong>James Miller</strong><span>Заместитель руководителя</span><small><i></i> В сети</small></div><b>ADMIN</b></article>
+          <article class="member-card"><div class="member-avatar av-blue">SC</div><div><strong>Sarah Connor</strong><span>Секретарь</span><small class="offline">Не в сети</small></div><b>EDITOR</b></article>
+          <article class="member-card"><div class="member-avatar av-orange">RK</div><div><strong>Robert King</strong><span>Юридический отдел</span><small><i></i> В сети</small></div><b>EDITOR</b></article>
+          <article class="member-card"><div class="member-avatar av-pink">EM</div><div><strong>Emma Morgan</strong><span>Кадровый отдел</span><small class="offline">Не в сети</small></div><b>MEMBER</b></article>
+          <article class="member-card add-member" id="addMemberCard"><div class="add-member-icon">＋</div><strong>Добавить сотрудника</strong><span>Пригласить по Discord ID</span></article>
+        </div>
+      </section>
+
+      <section class="page" id="page-activity">
+        <div class="page-title-row"><div><div class="eyebrow green">AUDIT / LOGS</div><h1>Журнал действий</h1><p>История изменений и действий в организации.</p></div><button class="secondary-button" id="exportLog">↓ Экспорт журнала</button></div>
+        <section class="panel"><div class="activity-list large-activity" id="fullActivity"></div></section>
+      </section>
+
+      <section class="page" id="page-assistant">
+        <div class="page-title-row"><div><div class="eyebrow green">INTELLIGENCE / AI</div><h1>REVOLUTIONE <span class="ai-title">AI</span></h1><p>Помощник по документам и нормативной базе.</p></div><span class="beta-pill">BETA ACCESS</span></div>
+        <div class="assistant-shell"><div class="assistant-intro"><div class="assistant-symbol">R<span>.</span></div><span class="eyebrow green">YOUR ORGANIZATION ASSISTANT</span><h2>Чем могу помочь?</h2><p>Сформулируйте задачу — помогу подготовить документ, найти нужную статью или разобраться с процессом.</p></div><div class="suggestion-chips"><button>Составить рапорт</button><button>Найти статью закона</button><button>Объяснить порядок согласования</button></div><div class="chat-messages" id="chatMessages"></div><form class="chat-input" id="chatForm"><input id="chatInput" placeholder="Напишите сообщение ассистенту..." autocomplete="off"><button type="submit">↑</button></form><div class="ai-disclaimer">Демонстрационный режим · Ответы не являются юридической консультацией</div></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head"><div><span class="eyebrow green">DOCUMENT WORKFLOW</span><h2 id="modalTitle">Новый документ</h2></div><button class="close-modal" id="closeModal">×</button></div>
+      <form id="documentForm">
+        <label>Название документа<input id="docName" required placeholder="Например, Приказ о назначении"></label>
+        <div class="form-row"><label>Тип документа<select id="docType"><option>Приказ</option><option>Рапорт</option><option>Заявление</option><option>Постановление</option><option>Протокол</option><option>Другое</option></select></label><label>Ответственный<input id="docAuthor" value="Alex Karter" required></label></div>
+        <label>Краткое содержание<textarea id="docDescription" rows="3" placeholder="Укажите основную информацию..."></textarea></label>
+        <div class="modal-actions"><button type="button" class="secondary-button" id="cancelModal">Отмена</button><button type="submit" class="primary-button">Создать документ <span>↗</span></button></div>
+      </form>
+    </div>
+  </div>
+  <div class="toast" id="toast"><span>✓</span><p>Готово</p></div>
+  <script src="app.js"></script>
+</body>
+</html>
