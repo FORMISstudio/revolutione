@@ -537,3 +537,4 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.72); backdrop-filter: blur(4px); 
 .chap { font-size: 13px; font-weight: 600; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; margin: 36px 0 -8px; padding-bottom: 10px; border-bottom: 1px solid var(--line-2); animation: rise 0.4s both; }
 .stars { color: var(--accent); font-size: 12px; letter-spacing: 1px; white-space: nowrap; text-shadow: 0 0 10px rgba(180, 242, 60, 0.5); }
 .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line-2); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+.notice.err { border-color: rgba(255, 93, 93, 0.5); background: rgba(255, 93, 93, 0.1); max-width: 460px; }

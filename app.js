@@ -446,7 +446,7 @@
   function viewLogin() {
     app.classList.add('guest');
     setCrumbs([['revolutione']]);
-    view.innerHTML = `<div class="login"><div class="login-logo">revolutione<b>”</b></div><p>Законы и документооборот для RP-серверов. Войдите, чтобы продолжить.</p><button class="btn primary big" data-act="login">Войти через Discord</button></div>`;
+    view.innerHTML = `<div class="login"><div class="login-logo">revolutione<b>”</b></div><p>Законы и документооборот для RP-серверов. Войдите, чтобы продолжить.</p>${state.authError ? `<div class="notice err">${esc(state.authError)}</div>` : ''}<button class="btn primary big" data-act="login">Войти через Discord</button></div>`;
   }
 
   async function viewAdmin() {
@@ -1022,14 +1022,22 @@
   async function pullStore() { await pullLaws(); }
 
   async function bootstrap() {
+    const q = new URLSearchParams(location.search + '&' + location.hash.replace(/^#/, ''));
+    state.authError = q.get('error_description') || q.get('error') || '';
+    try { await bootstrapInner(); } catch (e) { state.authError = state.authError || String(e.message || e); }
+  }
+
+  async function bootstrapInner() {
     const c = window.REV_CONFIG;
     if (!c || !c.url || !window.supabase) return;
-    sb = window.supabase.createClient(c.url, c.key);
-    const { data: { session } } = await sb.auth.getSession();
+    sb = window.supabase.createClient(c.url, c.key, { auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true } });
+    const { data: { session }, error: se } = await sb.auth.getSession();
+    if (se) state.authError = se.message;
     state.user = session ? session.user : null;
     sb.auth.onAuthStateChange((ev, s) => { if ((s ? s.user.id : null) !== (state.user ? state.user.id : null)) location.reload(); });
     if (!state.user) return;
     const { data: p } = await sb.from('profiles').select('role,name,avatar').eq('id', state.user.id).single();
+    if (!p) toast('Профиль не создан: проверьте триггер в schema.sql');
     state.role = (p && p.role) || 'user';
     state.name = (p && p.name) || '';
     state.avatar = (p && p.avatar) || '';
@@ -1326,6 +1334,7 @@
     state.path = path;
     state.params = new URLSearchParams(qs || '');
     view.classList.remove('wide');
+    app.classList.toggle('guest', !!(sb && !state.user));
     if (sb && !state.user) { viewLogin(); return; }
     const hit = ROUTES.find(r => r[0].test(path));
     if (!state.params.get('a')) window.scrollTo(0, 0);
