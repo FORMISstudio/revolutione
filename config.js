@@ -1,1 +1,1 @@
-window.REV_CONFIG = { url: 'https://hjnpzsokudvepqnhrrky.supabase.co', key: 'sb_secret_HsV0KD4VdcZmCeQm4GXRew_Vwc8Rp60' };
+window.REV_CONFIG = { url: 'https://hjnpzsokudvepqnhrrky.supabase.co', key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqbnB6c29rdWR2ZXBxbmhycmt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM5NTQzNjUsImV4cCI6MjEwOTUzMDM2NX0.gF_6siE36KOea6Pa9TisuayeiIle27_gIQ7dyxWYX6k' };
