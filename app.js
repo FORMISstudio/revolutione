@@ -333,6 +333,11 @@
     if (mount) mount(dlg);
   }
 
+  const showErr = (title, text) => openDialog(`<div class="dlg-body"><h2>${esc(title)}</h2><p class="muted" style="overflow-wrap:anywhere;white-space:pre-wrap">${esc(text)}</p><div class="dlg-actions"><button class="btn" data-close>Закрыть</button></div></div>`);
+  const fnErr = async e => {
+    try { const r = e.context; const b = await r.json(); return `HTTP ${r.status}: ${b.error || JSON.stringify(b)}`; } catch { return e.message; }
+  };
+
   const ask = (title, text, ok = 'Удалить') => new Promise(res => {
     openDialog(`<form method="dialog" class="dlg-body"><h2>${esc(title)}</h2><p class="muted">${esc(text)}</p><div class="dlg-actions"><button class="btn" value="no">Отмена</button><button class="btn danger" value="yes">${esc(ok)}</button></div></form>`);
     dlg.addEventListener('close', () => res(dlg.returnValue === 'yes'), { once: true });
@@ -1051,7 +1056,7 @@
     ACT.syncAll = async () => {
       toast('Обновление');
       const { data, error } = await sb.functions.invoke('sync-docs', { body: { all: true } });
-      if (error) { toast('Ошибка обновления'); return; }
+      if (error) { showErr('Ошибка обновления', await fnErr(error)); return; }
       await pullLaws();
       toast(`Обновлено: ${data.ok}`);
       route();
@@ -1072,9 +1077,10 @@
       toast(`Импорт: ${items.length}`);
       const { data, error } = await sb.functions.invoke('sync-docs', { body: { items } });
       b.disabled = false;
-      if (error) { toast('Ошибка: ' + error.message); return; }
+      if (error) { showErr('Ошибка импорта', await fnErr(error)); return; }
       await pullLaws();
       toast(`Готово: ${data.ok}, ошибок: ${data.fail.length}`);
+      if (data.fail.length) showErr('Не загрузилось', data.fail.join('\n\n'));
       route();
     };
   }
