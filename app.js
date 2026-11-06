@@ -464,7 +464,7 @@
       <section class="page-head"><div><h1>Админ-панель</h1><p>Импорт документов по ссылкам. Дальше они обновляются сами.</p></div><div class="actions"><button class="btn" data-act="syncAll">${icon('refresh')}Обновить все сейчас</button></div></section>
       <div class="panel">
         <label class="field"><span>Сервер</span><select id="admServer">${SERVERS.map(s => `<option ${s === state.server ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
-        <label class="field"><span>Ссылки по одной в строке, можно: Название | ссылка</span><textarea id="admLinks" rows="8" placeholder="Уголовный кодекс | https://forum.majestic-rp.ru/threads/..."></textarea></label>
+        <label class="field"><span>Одна ссылка на сервер, например https://docossum.com/legal/memphis, и все его документы подтянутся сами. Можно и Google Документы.</span><textarea id="admLinks" rows="8" placeholder="https://docossum.com/legal/memphis"></textarea></label>
         <div class="actions"><button class="btn primary" id="admGo" data-act="adminImport">Импортировать</button></div>
       </div>
       <div class="group-title">Документов в базе: ${laws.length}</div>
