@@ -205,6 +205,7 @@
   ];
 
   const ADMIN = { id: 'admin', label: 'Админ', icon: 'sliders', items: [{ label: 'Импорт документов', href: '#/admin' }] };
+  const ORGS = { id: 'orgs', label: 'Организации', icon: 'spark', items: [{ label: 'Мои организации', href: '#/orgs' }] };
   const LAWACT = ['addDoc', 'bulkImport', 'syncAll'];
   const canEdit = () => !sb || state.role === 'admin';
 
@@ -360,11 +361,12 @@
     const p = href.slice(1);
     return state.path === p
       || (p === '/legal' && state.path.startsWith('/legal/doc'))
-      || (p === '/paperwork' && state.path.startsWith('/paperwork/edit'));
+      || (p === '/paperwork' && state.path.startsWith('/paperwork/edit'))
+      || (p === '/orgs' && /^\/(org|v)\//.test(state.path));
   };
 
   function renderNav() {
-    $('#nav').innerHTML = NAV.concat(state.role === 'admin' ? [ADMIN] : []).map(s => {
+    $('#nav').innerHTML = NAV.concat(sb ? [ORGS] : [], state.role === 'admin' ? [ADMIN] : []).map(s => {
       const active = s.items.some(i => i.href && isActive(i.href));
       const open = !!state.open[s.id];
       const items = s.items.filter(i => !sb || state.role === 'admin' || !LAWACT.includes(i.action)).map(i => i.href
@@ -1039,6 +1041,8 @@
     const { data: { session }, error: se } = await sb.auth.getSession();
     if (se) state.authError = se.message;
     state.user = session ? session.user : null;
+    const nx = sessionStorage.getItem('rev.next');
+    if (state.user && nx) { sessionStorage.removeItem('rev.next'); history.replaceState(null, '', location.pathname + location.search + nx); }
     sb.auth.onAuthStateChange((ev, s) => { if ((s ? s.user.id : null) !== (state.user ? state.user.id : null)) location.reload(); });
     if (!state.user) return;
     const { data: p } = await sb.from('profiles').select('role,name,avatar').eq('id', state.user.id).single();
@@ -1210,7 +1214,7 @@
     },
     openDrawer() { app.classList.add('drawer'); },
     newTpl() { tplDialog(); },
-    login() { if (sb) sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + location.pathname } }); },
+    login() { sessionStorage.setItem('rev.next', location.hash); if (sb) sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + location.pathname } }); },
     logout() { if (sb) sb.auth.signOut(); },
     addSec() { state.cur.doc.sections = (state.cur.doc.sections || []).concat({ t: '', x: '' }); state.cur.redraw(); },
     delSec(b) { state.cur.doc.sections.splice(+b.dataset.i, 1); state.cur.redraw(); },
@@ -1322,7 +1326,12 @@
     }
   };
 
+  const orgR = (f, a) => (window.ORG && sb ? window.ORG[f](a) : setTimeout(route, 80));
   const ROUTES = [
+    [/^\/orgs$/, () => orgR('list')],
+    [/^\/org\/([\w-]+)$/, m => orgR('board', { id: m[1] })],
+    [/^\/org\/([\w-]+)\/templates$/, m => orgR('templates', m[1])],
+    [/^\/v\/(\w+)$/, m => orgR('board', { token: m[1] })],
     [/^\/legal(?:\/(k|z|u))?$/, m => viewLegal(m[1])],
     [/^\/legal\/doc\/([\w-]+)$/, m => viewDoc(m[1])],
     [/^\/paperwork$/, viewPaperwork],
@@ -1373,6 +1382,8 @@
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); pal.open ? pal.close() : openPalette(); return; }
     if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !dlg.open && !pal.open) { e.preventDefault(); openPalette(); }
   });
+
+  window.REV = { $, esc, icon, view, state, toast, copy, openDialog, dlg, ask, setCrumbs, notFound, fmtDate, uid, sanitize, rich, route, get sb() { return sb; } };
 
   const select = $('#serverSelect');
   select.addEventListener('change', () => {

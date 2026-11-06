@@ -538,3 +538,17 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.72); backdrop-filter: blur(4px); 
 .stars { color: var(--accent); font-size: 12px; letter-spacing: 1px; white-space: nowrap; text-shadow: 0 0 10px rgba(180, 242, 60, 0.5); }
 .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line-2); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
 .notice.err { border-color: rgba(255, 93, 93, 0.5); background: rgba(255, 93, 93, 0.1); max-width: 460px; }
+
+.node.note { width: 220px; height: 84px; align-items: flex-start; justify-content: flex-start; padding: 8px 12px; white-space: pre-wrap; text-align: left; font-size: 12px; line-height: 1.4; background: #1d1c14; border-color: #3a3820; }
+.node.pick { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), 0 0 24px rgba(180, 242, 60, 0.3); }
+.threads .hit { stroke: transparent; stroke-width: 16; animation: none; pointer-events: stroke; cursor: pointer; }
+.threads .hit:hover + path { stroke: var(--accent); }
+.board-bar { max-width: 96vw; }
+.bar-group.wrap { flex-wrap: wrap; justify-content: center; border-radius: 22px; }
+.bar-group .btn { height: 36px; }
+.bar-note { padding: 8px 16px; font-size: 13px; color: var(--muted); }
+.chk { display: flex; align-items: center; gap: 8px; font-size: 14px; padding: 4px 0; }
+.chk input { accent-color: var(--accent); width: 16px; height: 16px; }
+dialog.dlg-wide { width: min(1000px, 96vw); max-height: 92vh; overflow: auto; }
+.fill { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 760px) { .fill { grid-template-columns: 1fr; } }
