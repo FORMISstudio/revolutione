@@ -362,7 +362,7 @@
     return state.path === p
       || (p === '/legal' && state.path.startsWith('/legal/doc'))
       || (p === '/paperwork' && state.path.startsWith('/paperwork/edit'))
-      || (p === '/orgs' && /^\/(org|v)\//.test(state.path));
+      || (p === '/orgs' && /^\/(org|v|d)\//.test(state.path));
   };
 
   function renderNav() {
@@ -721,7 +721,7 @@
     location.hash = '#/paperwork/edit/' + doc.id;
   }
 
-  const ALLOW = ['B', 'STRONG', 'I', 'EM', 'U', 'UL', 'OL', 'LI', 'BR', 'DIV', 'P'];
+  const ALLOW = ['B', 'STRONG', 'I', 'EM', 'U', 'UL', 'OL', 'LI', 'BR', 'DIV', 'P', 'MARK', 'S'];
   const allTpls = () => TEMPLATES.concat(store.get(skey('tpls'), []));
 
   function sanitize(html) {
@@ -1333,6 +1333,8 @@
     [/^\/org\/([\w-]+)\/templates$/, m => orgR('templates', m[1])],
     [/^\/v\/([\w-]+)$/, m => orgR('board', { token: m[1] })],
     [/^\/org\/([\w-]+)\/settings$/, m => orgR('settings', m[1])],
+    [/^\/org\/([\w-]+)\/doc\/([\w-]+)$/, m => orgR('doc', { id: m[1], node: m[2] })],
+    [/^\/d\/([\w-]+)\/([\w-]+)$/, m => orgR('doc', { token: m[1], node: m[2] })],
     [/^\/legal(?:\/(k|z|u))?$/, m => viewLegal(m[1])],
     [/^\/legal\/doc\/([\w-]+)$/, m => viewDoc(m[1])],
     [/^\/paperwork$/, viewPaperwork],
