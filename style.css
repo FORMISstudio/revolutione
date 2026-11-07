@@ -611,3 +611,5 @@ dialog.dlg-wide { width: min(1000px, 96vw); max-height: 92vh; overflow: auto; }
 @media (max-width: 1100px) { .docgrid { grid-template-columns: 1fr; } .docprev { position: static; max-height: none; } }
 @media (max-width: 900px) { .ted { grid-template-columns: 1fr; grid-template-rows: auto; height: auto; } .ted-l, .ted-r { border: 0; } .ted-c { padding: 14px; } }
 @media (max-width: 700px) { .lpage { zoom: 0.62; } .docwrap { padding: 20px 14px 80px; } .grid3 { grid-template-columns: 1fr; } }
+.lpage img.stamp { object-fit: contain; }
+img.avatar { object-fit: cover; display: block; }

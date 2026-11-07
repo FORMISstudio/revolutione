@@ -182,6 +182,7 @@
       id: 'paperwork', label: 'Документы', icon: 'file', items: [
         { label: 'Мои документы', href: '#/paperwork' },
         { label: 'Создать документ', href: '#/paperwork/new' },
+        { label: 'Мои шаблоны', href: '#/paperwork/templates' },
         { label: 'Доска документов', href: '#/board' }
       ]
     },
@@ -380,7 +381,7 @@
     const p = profile();
     const name = p.name || state.name || 'Профиль не заполнен';
     const sub = sb ? (state.role === 'admin' ? 'Админ' : 'Обычный') : p.name ? [p.rank, p.org].filter(Boolean).join(', ') || state.server : 'Заполните для шаблонов';
-    $('#sideFoot').innerHTML = `<a class="profile-chip" href="#/settings"><span class="avatar ${p.name ? '' : 'empty'}">${esc(p.name ? p.name[0].toUpperCase() : '?')}</span><span class="pc-text"><b>${esc(name)}</b><span>${esc(sub)}</span></span></a>${sb ? `<button class="icon-btn" data-act="logout" title="Выйти" aria-label="Выйти">${icon('out')}</button>` : ''}`;
+    $('#sideFoot').innerHTML = `<a class="profile-chip" href="#/settings">${state.avatar ? `<img class="avatar" src="${esc(state.avatar)}" alt="" referrerpolicy="no-referrer">` : `<span class="avatar ${p.name || state.name ? '' : 'empty'}">${esc((p.name || state.name || '?')[0].toUpperCase())}</span>`}<span class="pc-text"><b>${esc(name)}</b><span>${esc(sub)}</span></span></a>${sb ? `<button class="icon-btn" data-act="logout" title="Выйти" aria-label="Выйти">${icon('out')}</button>` : ''}`;
   }
 
   function parseArticles(raw) {
@@ -478,9 +479,7 @@
   function viewBoard() {
     setCrumbs([['Документы', '#/paperwork'], ['Доска']]);
     view.classList.add('wide');
-    const groups = [['Судебные', ['claim']], ['Следственные', ['arrest', 'warrant']], ['Служебные', ['report', 'explain']]];
-    const own = store.get(skey('tpls'), []).map(t => t.id);
-    if (own.length) groups.push(['Свои', own]);
+    const groups = [['Шаблоны', allTpls().map(t => t.id)]];
     const my = myDocs();
     const nodes = [];
     const edges = [];
@@ -712,17 +711,13 @@
   }
 
   function createDoc(tplId) {
-    const tpl = allTpls().find(t => t.id === tplId);
-    if (!tpl) return;
-    const values = {};
-    tpl.fields.forEach(f => { values[f.k] = f.def === 'me' ? meName() : f.def === 'today' ? today() : ''; });
-    const doc = { id: uid(), tpl: tplId, title: `${tpl.title} от ${today()}`, values, status: 'draft', created: Date.now(), updated: Date.now() };
+    const doc = { id: uid(), tpl: tplId, title: `Документ от ${today()}`, code: '', status: 'draft', sections: [{ t: '', x: '' }], created: Date.now(), updated: Date.now() };
     saveMyDocs([...myDocs(), doc]);
     location.hash = '#/paperwork/edit/' + doc.id;
   }
 
   const ALLOW = ['B', 'STRONG', 'I', 'EM', 'U', 'UL', 'OL', 'LI', 'BR', 'DIV', 'P', 'MARK', 'S'];
-  const allTpls = () => TEMPLATES.concat(store.get(skey('tpls'), []));
+  const allTpls = () => [{ id: 'p:dark', title: 'Тёмный' }, { id: 'p:light', title: 'Светлый' }, { id: 'p:plain', title: 'Простой' }].concat(store.get(skey('ltpl'), []).map(t => ({ id: t.id, title: t.title })));
 
   function sanitize(html) {
     const t = document.createElement('template');
@@ -1326,6 +1321,7 @@
     }
   };
 
+  const locR = (f, x) => (window.ORG ? window.ORG[f](x) : setTimeout(route, 80));
   const orgR = (f, a) => (window.ORG && sb ? window.ORG[f](a) : setTimeout(route, 80));
   const ROUTES = [
     [/^\/orgs$/, () => orgR('list')],
@@ -1338,8 +1334,9 @@
     [/^\/legal(?:\/(k|z|u))?$/, m => viewLegal(m[1])],
     [/^\/legal\/doc\/([\w-]+)$/, m => viewDoc(m[1])],
     [/^\/paperwork$/, viewPaperwork],
-    [/^\/paperwork\/new$/, viewNew],
-    [/^\/paperwork\/edit\/([\w-]+)$/, m => viewEdit(m[1])],
+    [/^\/paperwork\/new$/, () => locR('pnew')],
+    [/^\/paperwork\/templates$/, () => locR('ptemplates')],
+    [/^\/paperwork\/edit\/([\w-]+)$/, m => locR('pdoc', m[1])],
     [/^\/admin$/, viewAdmin],
     [/^\/board$/, viewBoard],
     [/^\/assistant$/, viewAssistant],
@@ -1386,7 +1383,7 @@
     if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !dlg.open && !pal.open) { e.preventDefault(); openPalette(); }
   });
 
-  window.REV = { $, esc, icon, view, state, toast, copy, openDialog, dlg, ask, setCrumbs, notFound, fmtDate, uid, sanitize, rich, route, get sb() { return sb; } };
+  window.REV = { store, skey, myDocs, saveMyDocs, createDoc, $, esc, icon, view, state, toast, copy, openDialog, dlg, ask, setCrumbs, notFound, fmtDate, uid, sanitize, rich, route, get sb() { return sb; } };
 
   const select = $('#serverSelect');
   select.addEventListener('change', () => {

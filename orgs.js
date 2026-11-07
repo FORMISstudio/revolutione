@@ -4,7 +4,7 @@
   const sb = () => R.sb;
   const HOOK = /^https:\/\/(discord|discordapp)\.com\/api\/webhooks\//;
   const CMDS = [['bold', 'B'], ['italic', 'I'], ['underline', 'U'], ['insertUnorderedList', '•'], ['insertOrderedList', '1.'], ['justifyLeft', '⇤'], ['justifyCenter', '↔'], ['justifyRight', '⇥']];
-  const STAMP = '<svg class="stamp" viewBox="0 0 100 100"><defs><path id="op" d="M50 50m-38 0a38 38 0 1 1 76 0a38 38 0 1 1-76 0"/></defs><circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" stroke-width="1.5"/><text font-size="8" letter-spacing="2" fill="currentColor"><textPath href="#op">DIGITAL PROOF · VERIFIED ·</textPath></text><path d="M40 58l8-16 8 12 6-8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
+  const STAMP = '<img class="stamp" src="stamp.png" alt="">';
   let D = null;
   let edit = false;
   let redraw = () => {};
@@ -252,7 +252,7 @@
   const ln = o => ({ id: R.uid(), type: 'line', thick: 2, w: 100, color: '', ...o });
 
   const preset = k => {
-    const logo = { id: R.uid(), type: 'image', url: (D.org.brand || {}).logo || '', w: 110 };
+    const logo = { id: R.uid(), type: 'image', url: ((D && D.org && D.org.brand) || {}).logo || '', w: 110 };
     const content = { id: R.uid(), type: 'content', size: 14, align: 'left' };
     const sg = { id: R.uid(), type: 'signers' };
     if (k === 'dark') return { page: { bg: '#0a0a0b', color: '#ffffff', pad: 36 }, blocks: [bl('Шапка', [logo, tx('{{org}}', { size: 22, weight: 600 }), tx('{{title}}', { size: 13, weight: 600, upper: true }), tx('№ {{code}}', { size: 11, color: '#888888' })]), ln({ thick: 1, color: '#333333' }), content, sg] };
@@ -300,6 +300,15 @@
   async function templates(id) {
     if (!await load({ id }) || !D.org.admin) return R.notFound('Нет доступа');
     R.setCrumbs([['Организации', '#/orgs'], [D.org.name, '#/org/' + id], ['Шаблоны']]);
+    designer({
+      items: () => D.templates,
+      reload: () => load({ id }),
+      save: (row, tid) => { row.org_id = D.org.id; return tid ? sb().from('org_templates').update(row).eq('id', tid) : sb().from('org_templates').insert(row); },
+      del: tid => sb().from('org_templates').delete().eq('id', tid)
+    });
+  }
+
+  function designer(cfg) {
     let T = null;
     let sel = null;
     let hist = [];
@@ -320,7 +329,7 @@
     const listView = () => {
       T = null;
       R.view.classList.remove('wide');
-      R.view.innerHTML = `<section class="page-head"><div><h1>Шаблоны</h1><p>Конструктор листа: шапка, текст, линии, изображения и подписи. Текст самого документа пишется потом на доске.</p></div><div class="actions"><button class="btn primary" data-o="newTpl2">${icon('plus')}Новый шаблон</button></div></section>${D.templates.length ? `<div class="gal">${D.templates.map(t => `<button class="gcard" data-o="editTpl" data-id="${t.id}"><div class="thumb"><div class="thumb-in">${pageHtml(layoutOf(t), SAMPLE())}</div></div><span>${esc(t.title)}</span></button>`).join('')}</div>` : '<div class="empty"><h3>Шаблонов пока нет</h3><p>Создайте первый, можно начать с готового макета.</p></div>'}`;
+      R.view.innerHTML = `<section class="page-head"><div><h1>Шаблоны</h1><p>Конструктор листа: шапка, текст, линии, изображения и подписи. Текст самого документа пишется потом на доске.</p></div><div class="actions"><button class="btn primary" data-o="newTpl2">${icon('plus')}Новый шаблон</button></div></section>${cfg.items().length ? `<div class="gal">${cfg.items().map(t => `<button class="gcard" data-o="editTpl" data-id="${t.id}"><div class="thumb"><div class="thumb-in">${pageHtml(layoutOf(t), SAMPLE())}</div></div><span>${esc(t.title)}</span></button>`).join('')}</div>` : '<div class="empty"><h3>Шаблонов пока нет</h3><p>Создайте первый, можно начать с готового макета.</p></div>'}`;
     };
     const draw = () => {
       R.view.classList.add('wide');
@@ -361,43 +370,43 @@
     H.redo = () => { if (hi < hist.length - 1) { hi++; T.layout = JSON.parse(hist[hi]); sel = null; refresh(); } };
     H.tplPrev = () => $('.ted').classList.toggle('nosel');
     H.tplBack = listView;
-    H.newTpl2 = () => gallery([{ name: 'Тёмный', layout: preset('dark') }, { name: 'Светлый', layout: preset('light') }, { name: 'Простой', layout: preset('plain') }, ...D.templates.map(t => ({ name: 'Копия: ' + t.title, layout: layoutOf(t) }))], it => begin({ title: '', code: 'DOC', layout: clone(it.layout) }));
-    H.editTpl = b => { const t = D.templates.find(x => x.id === b.dataset.id); begin({ id: t.id, title: t.title, code: t.code || 'DOC', layout: clone(layoutOf(t)) }); };
+    H.newTpl2 = () => gallery([{ name: 'Тёмный', layout: preset('dark') }, { name: 'Светлый', layout: preset('light') }, { name: 'Простой', layout: preset('plain') }, ...cfg.items().map(t => ({ name: 'Копия: ' + t.title, layout: layoutOf(t) }))], it => begin({ title: '', code: 'DOC', layout: clone(it.layout) }));
+    H.editTpl = b => { const t = cfg.items().find(x => x.id === b.dataset.id); begin({ id: t.id, title: t.title, code: t.code || 'DOC', layout: clone(layoutOf(t)) }); };
     H.saveTpl = async () => {
-      const row = { org_id: D.org.id, title: (T.title || '').trim() || 'Шаблон', code: (T.code || 'DOC').trim().toUpperCase(), layout: T.layout };
-      const { error } = T.id ? await sb().from('org_templates').update(row).eq('id', T.id) : await sb().from('org_templates').insert(row);
+      const row = { title: (T.title || '').trim() || 'Шаблон', code: (T.code || 'DOC').trim().toUpperCase(), layout: T.layout };
+      const { error } = await cfg.save(row, T.id);
       if (error) return toast('Не удалось сохранить');
-      await load({ id });
+      await cfg.reload();
       listView();
       toast('Шаблон сохранён');
     };
-    H.delTpl = async () => { if (!await R.ask('Удалить шаблон?', 'Документы на доске потеряют шаблон.')) return; await sb().from('org_templates').delete().eq('id', T.id); await load({ id }); listView(); };
+    H.delTpl = async () => { if (!await R.ask('Удалить шаблон?', 'Документы на доске потеряют шаблон.')) return; await cfg.del(T.id); await cfg.reload(); listView(); };
     listView();
   }
 
   async function doc(arg) {
-    if (!await load(arg)) return R.notFound('Организация не найдена или нет доступа');
-    const n = D.nodes.find(x => x.id === arg.node && x.kind === 'doc');
+    if (!arg.local && !await load(arg)) return R.notFound('Организация не найдена или нет доступа');
+    const n = arg.local ? arg.n : D.nodes.find(x => x.id === arg.node && x.kind === 'doc');
     if (!n) return R.notFound('Документ не найден');
-    const adm = !!arg.id && D.org.admin;
+    const adm = arg.local || (!!arg.id && D.org.admin);
     const back = adm ? '#/org/' + D.org.id : '#/v/' + (D.org.slug || D.org.token);
-    R.setCrumbs([['Организации', '#/orgs'], [D.org.name, back], [n.title]]);
+    R.setCrumbs(arg.local ? [['Документы', '#/paperwork'], [n.title]] : [['Организации', '#/orgs'], [D.org.name, back], [n.title]]);
     R.view.classList.add('wide');
-    const st = { title: n.title, code: n.code || '', tid: n.template_id || '', sections: JSON.parse(JSON.stringify(n.sections || [])), hooks: [...(n.webhook_ids || [])], name: R.state.name || '', pos: '', date: new Date().toLocaleDateString('ru-RU'), signers: [] };
+    const st = { title: n.title, code: n.code || '', tid: n.template_id || '', sections: JSON.parse(JSON.stringify(n.sections || [])), hooks: [...(n.webhook_ids || [])], status: n.status || 'draft', name: R.state.name || '', pos: '', date: new Date().toLocaleDateString('ru-RU'), signers: [] };
     if (!st.sections.length && adm) st.sections.push({ t: '', x: '' });
     const tpl = () => D.templates.find(t => t.id === st.tid);
     const code = () => st.code || `${(tpl() || {}).code || 'DOC'}-${n.id.slice(-4).toUpperCase()}`;
     const ctx = () => ({ title: st.title, code: code(), date: st.date, author: st.name, signers: [{ name: st.name, pos: st.pos }, ...st.signers], content: st.sections.map(s => (s.t ? `<div class="sec-t">${esc(s.t)}:</div>` : '') + R.sanitize(s.x)).join('') });
     const hooks = D.org.member ? D.webhooks.filter(w => st.hooks.includes(w.id)) : [];
     R.view.innerHTML = `<div class="docwrap"><div class="docgrid"><div class="docform">
-      ${adm ? `<div class="grid2"><label class="field"><span>Название</span><input data-m="title" value="${esc(st.title)}"></label><label class="field"><span>Код документа</span><input data-m="code" value="${esc(st.code)}" placeholder="Авто"></label></div><div class="field"><span>Шаблон</span><button class="btn" data-o="dTpl" id="dTplBtn"></button></div>` : `<h1 class="dtitle">${esc(n.title)}</h1>`}
+      ${adm ? `<div class="grid2"><label class="field"><span>Название</span><input data-m="title" value="${esc(st.title)}"></label><label class="field"><span>Код документа</span><input data-m="code" value="${esc(st.code)}" placeholder="Авто"></label></div><div class="field"><span>Шаблон</span><button class="btn" data-o="dTpl" id="dTplBtn"></button></div>${arg.local ? `<label class="field"><span>Статус</span><select data-m="status">${Object.entries(SL).map(([k, v]) => `<option value="${k}" ${st.status === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>` : ''}` : `<h1 class="dtitle">${esc(n.title)}</h1>`}
       <div class="thread" id="dThread"></div>
       <button class="btn" data-o="addSec2">${icon('plus')}Добавить секцию</button>
       <div class="grid3"><label class="field"><span>Автор</span><input data-m="name" value="${esc(st.name)}"></label><label class="field"><span>Должность</span><input data-m="pos" placeholder="Attorney"></label><label class="field"><span>Дата</span><input data-m="date" value="${esc(st.date)}"></label></div>
       <div id="dSign" class="form"></div><button class="link-btn" data-o="addSgn" style="align-self:flex-start">Добавить подписанта</button>
-      ${adm ? `<div class="field"><span>Каналы для публикации</span>${D.webhooks.map(w => `<label class="chk"><input type="checkbox" data-hook="${w.id}" ${st.hooks.includes(w.id) ? 'checked' : ''}> ${esc(w.name)}</label>`).join('') || '<small class="muted">Каналы добавляются в настройках организации</small>'}</div><p class="save-state" id="dState">Сохранено</p>` : ''}
+      ${adm && !arg.local ? `<div class="field"><span>Каналы для публикации</span>${D.webhooks.map(w => `<label class="chk"><input type="checkbox" data-hook="${w.id}" ${st.hooks.includes(w.id) ? 'checked' : ''}> ${esc(w.name)}</label>`).join('') || '<small class="muted">Каналы добавляются в настройках организации</small>'}</div><p class="save-state" id="dState">Сохранено</p>` : ''}
       <div class="actions"><button class="btn" data-o="dPng">Скачать</button>${hooks.length ? `<select class="select" id="dHook">${hooks.map(w => `<option value="${w.id}">${esc(w.name)}</option>`).join('')}</select><button class="btn primary" data-o="dSend">Опубликовать</button>` : ''}</div>
-      ${!D.org.member ? '<small class="muted">Публиковать в Discord могут только участники состава</small>' : ''}
+      ${!arg.local && !D.org.member ? '<small class="muted">Публиковать в Discord могут только участники состава</small>' : ''}
     </div><div class="docprev"><div id="dPage"></div></div></div></div>`;
     const paint = () => { $('#dPage').innerHTML = pageHtml(tpl() ? layoutOf(tpl()) : preset('dark'), ctx()); if (adm) $('#dTplBtn').textContent = 'Шаблон: ' + (tpl() ? tpl().title : 'не выбран'); };
     const thread = () => { $('#dThread').innerHTML = st.sections.map((s, i) => `<div class="tsec"><span class="tnum">${i + 1}</span><input data-si="${i}" data-sf="t" value="${esc(s.t)}" placeholder="Без заголовка"><div class="rtb">${CMDS.map(([c, l]) => `<button type="button" data-cmd="${c}">${l}</button>`).join('')}<button type="button" data-mark="1">Маркер</button></div><div class="rt" contenteditable="true" data-si="${i}" data-sf="x" data-ph="Текст секции">${R.rich(s.x)}</div><button type="button" class="link-btn" data-o="delSec2" data-i="${i}">Убрать</button></div>`).join(''); };
@@ -405,7 +414,8 @@
     const save = deb(async () => {
       const el = $('#dState');
       if (el) el.textContent = 'Сохранение';
-      await sb().from('org_nodes').update({ title: st.title, code: st.code, template_id: st.tid || null, sections: st.sections.map(s => ({ t: s.t, x: R.sanitize(s.x) })), webhook_ids: st.hooks }).eq('id', n.id);
+      const upd = { title: st.title, code: st.code, template_id: st.tid || null, sections: st.sections.map(x => ({ t: x.t, x: R.sanitize(x.x) })) };
+      if (arg.local) { upd.status = st.status; await arg.save(upd); } else await sb().from('org_nodes').update({ ...upd, webhook_ids: st.hooks }).eq('id', n.id);
       Object.assign(n, { title: st.title, code: st.code, template_id: st.tid || null });
       if (el) el.textContent = 'Сохранено';
     }, 600);
@@ -457,6 +467,50 @@
     paint();
   }
 
+  const SL = { draft: 'Черновик', review: 'На подписи', signed: 'Подписан', rejected: 'Отклонён' };
+  const localD = () => {
+    D = { org: { name: R.store.get('profile', {}).org || 'revolutione', brand: {}, member: false, token: '', admin: true }, templates: [], webhooks: [], nodes: [], edges: [] };
+    D.templates = ['dark:Тёмный', 'light:Светлый', 'plain:Простой'].map(x => { const [k, nm] = x.split(':'); return { id: 'p:' + k, title: nm, code: 'DOC', layout: preset(k) }; }).concat(R.store.get(R.skey('ltpl'), []));
+    return D;
+  };
+
+  function ptemplates() {
+    localD();
+    R.setCrumbs([['Документы', '#/paperwork'], ['Мои шаблоны']]);
+    const all = () => R.store.get(R.skey('ltpl'), []);
+    designer({
+      items: all,
+      reload: async () => { localD(); },
+      save: async (row, tid) => { const l = all(); if (tid) { const i = l.findIndex(x => x.id === tid); l[i] = { ...l[i], ...row }; } else l.push({ id: R.uid(), ...row }); R.store.set(R.skey('ltpl'), l); return {}; },
+      del: async tid => { R.store.set(R.skey('ltpl'), all().filter(x => x.id !== tid)); }
+    });
+  }
+
+  function pnew() {
+    localD();
+    R.setCrumbs([['Документы', '#/paperwork'], ['Новый документ']]);
+    R.view.classList.remove('wide');
+    R.view.innerHTML = `<section class="page-head"><div><h1>Новый документ</h1><p>Выберите оформление листа или соберите своё в конструкторе.</p></div><div class="actions"><a class="btn" href="#/paperwork/templates">${icon('plus')}Свой шаблон</a></div></section><div class="gal">${D.templates.map(t => `<button class="gcard" data-o="pcreate" data-id="${esc(t.id)}"><div class="thumb"><div class="thumb-in">${pageHtml(layoutOf(t), SAMPLE())}</div></div><span>${esc(t.title)}</span></button>`).join('')}</div>`;
+    H.pcreate = b => R.createDoc(b.dataset.id);
+  }
+
+  function pdoc(id) {
+    localD();
+    const d = R.myDocs().find(x => x.id === id);
+    if (!d) return R.notFound('Документ не найден');
+    const legacy = !d.sections && d.values ? [{ t: '', x: Object.entries(d.values).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join('\n') }] : null;
+    const n = { id: d.id, title: d.title, code: d.code || '', template_id: d.tpl, sections: d.sections || legacy || [], webhook_ids: [], status: d.status };
+    return doc({
+      local: true,
+      n,
+      save: async upd => {
+        const l = R.myDocs();
+        const i = l.findIndex(x => x.id === id);
+        if (i >= 0) { l[i] = { ...l[i], title: upd.title, code: upd.code, tpl: upd.template_id, sections: upd.sections, status: upd.status || l[i].status, updated: Date.now() }; R.saveMyDocs(l); }
+      }
+    });
+  }
+
   const H = {
     async newOrg() {
       R.openDialog('<form class="dlg-body" id="of"><h2>Новая организация</h2><label class="field"><span>Название</span><input name="name" required placeholder="Министерство юстиции"></label><label class="field"><span>Адрес (необязательно, латиница)</span><input name="slug" placeholder="my-org"></label><div class="dlg-actions"><button type="button" class="btn" data-close>Отмена</button><button class="btn primary">Создать</button></div></form>', d => {
@@ -475,5 +529,5 @@
   };
   document.addEventListener('click', e => { const b = e.target.closest('[data-o]'); if (b && H[b.dataset.o]) H[b.dataset.o](b); });
 
-  window.ORG = { list, board, templates, settings, doc };
+  window.ORG = { list, board, templates, settings, doc, ptemplates, pnew, pdoc };
 })();
