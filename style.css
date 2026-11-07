@@ -619,3 +619,8 @@ img.avatar { object-fit: cover; display: block; }
 .up-prev img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .up .actions { flex-direction: column; align-items: flex-start; }
 label.btn { cursor: pointer; }
+
+.pform { max-width: 640px; margin: 0 auto; }
+.pform .card h2 { display: flex; align-items: center; font-size: 17px; }
+.tnum2 { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--raised); border: 1px solid var(--line-2); font-size: 12px; margin-right: 10px; flex: none; }
+.ans-img { max-width: 100%; max-height: 260px; border-radius: 8px; margin-top: 6px; }

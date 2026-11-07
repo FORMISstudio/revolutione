@@ -363,7 +363,7 @@
     return state.path === p
       || (p === '/legal' && state.path.startsWith('/legal/doc'))
       || (p === '/paperwork' && state.path.startsWith('/paperwork/edit'))
-      || (p === '/orgs' && /^\/(org|v|d)\//.test(state.path));
+      || (p === '/orgs' && /^\/(org|v|d|f)\//.test(state.path));
   };
 
   function renderNav() {
@@ -1329,6 +1329,10 @@
     [/^\/org\/([\w-]+)\/templates$/, m => orgR('templates', m[1])],
     [/^\/v\/([\w-]+)$/, m => orgR('board', { token: m[1] })],
     [/^\/org\/([\w-]+)\/settings$/, m => orgR('settings', m[1])],
+    [/^\/org\/([\w-]+)\/forms$/, m => orgR('forms', m[1])],
+    [/^\/org\/([\w-]+)\/forms\/([\w-]+)$/, m => orgR('formEdit', { id: m[1], fid: m[2] })],
+    [/^\/org\/([\w-]+)\/audit$/, m => orgR('auditView', m[1])],
+    [/^\/f\/([\w-]+)$/, m => orgR('formPublic', m[1])],
     [/^\/org\/([\w-]+)\/doc\/([\w-]+)$/, m => orgR('doc', { id: m[1], node: m[2] })],
     [/^\/d\/([\w-]+)\/([\w-]+)$/, m => orgR('doc', { token: m[1], node: m[2] })],
     [/^\/legal(?:\/(k|z|u))?$/, m => viewLegal(m[1])],

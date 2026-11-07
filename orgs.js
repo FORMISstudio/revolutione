@@ -40,7 +40,7 @@
     R.view.classList.add('wide');
     const link = `${location.origin}${location.pathname}#/v/${D.org.slug || D.org.token}`;
     const bar = edit
-      ? `<button class="btn" data-o="addNote">+ Заметка</button><button class="btn" data-o="addDoc">+ Документ</button><button class="btn" data-o="addGroup">+ Группа</button><button class="btn" id="connBtn" data-o="connect">Соединить</button><a class="btn" href="#/org/${D.org.id}/templates">Шаблоны</a><a class="btn" href="#/org/${D.org.id}/settings">Настройки</a><button class="btn primary" data-o="copyLink" data-link="${esc(link)}">Ссылка для зрителей</button>`
+      ? `<button class="btn" data-o="addNote">+ Заметка</button><button class="btn" data-o="addDoc">+ Документ</button><button class="btn" data-o="addGroup">+ Группа</button><button class="btn" id="connBtn" data-o="connect">Соединить</button><a class="btn" href="#/org/${D.org.id}/templates">Шаблоны</a><a class="btn" href="#/org/${D.org.id}/settings">Настройки</a><a class="btn" href="#/org/${D.org.id}/forms">Формы</a><a class="btn" href="#/org/${D.org.id}/audit">Журнал</a><button class="btn primary" data-o="copyLink" data-link="${esc(link)}">Ссылка для зрителей</button>`
       : `<span class="bar-note">${esc(D.org.name)}: нажмите на документ, чтобы заполнить</span>${D.org.admin ? `<a class="btn" href="#/org/${D.org.id}">Управлять</a>` : ''}`;
     R.view.innerHTML = `<div class="board" id="board"><div class="board-inner" id="boardInner"></div><div class="board-bar"><div class="bar-group wrap">${bar}</div></div></div>`;
     const box = $('#board');
@@ -134,6 +134,7 @@
     const { data, error } = await sb().from('org_nodes').insert({ org_id: D.org.id, kind, x: 60 + k, y: 60 + k, title: kind === 'doc' ? 'Новый документ' : kind === 'group' ? 'Группа' : '', body: kind === 'note' ? 'Новая заметка' : '' }).select().single();
     if (error) return toast('Не удалось добавить');
     D.nodes.push(data);
+    audit('Добавлена карточка', kind === 'doc' ? 'документ' : kind === 'group' ? 'группа' : 'заметка');
     redraw();
     if (kind === 'note') noteDlg(data); else if (kind === 'group') groupDlg(data); else location.hash = '#/org/' + D.org.id + '/doc/' + data.id;
   }
@@ -153,6 +154,7 @@
 
   async function delNode(n) {
     await sb().from('org_nodes').delete().eq('id', n.id);
+    audit('Удалена карточка', n.title || n.kind);
     D.nodes = D.nodes.filter(x => x.id !== n.id);
     D.edges = D.edges.filter(x => x.a !== n.id && x.b !== n.id);
     R.dlg.close();
@@ -214,21 +216,24 @@
       if (slug && !/^[a-z0-9-]{3,40}$/.test(slug)) return toast('Адрес: 3-40 символов, латиница, цифры, дефис');
       const { error } = await sb().from('orgs').update({ name: val('#sName'), slug: slug || null }).eq('id', id);
       if (error) return toast(error.code === '23505' ? 'Адрес уже занят' : 'Не удалось сохранить');
+      audit('Изменены настройки', val('#sName'));
       toast('Сохранено');
       settings(id);
     };
     H.saveBrand = async () => {
       const { error } = await sb().from('orgs').update({ brand: { color: val('#bColor'), title: val('#bTitle'), logo: br.logo || '', stamp: br.stamp || '' } }).eq('id', id);
+      if (!error) audit('Изменено оформление листа');
       toast(error ? 'Не удалось сохранить' : 'Оформление сохранено');
     };
-    H.addMember = async () => { const { data } = await sb().rpc('org_add_member', { p_org: id, p_name: val('#mName') }); if (data !== 'ok') return toast(data || 'Ошибка'); settings(id); };
-    H.delMember = async b => { await sb().rpc('org_remove_member', { p_org: id, p_user: b.dataset.id }); settings(id); };
+    H.addMember = async () => { const { data } = await sb().rpc('org_add_member', { p_org: id, p_name: val('#mName') }); if (data !== 'ok') return toast(data || 'Ошибка'); audit('Добавлен в состав', val('#mName')); settings(id); };
+    H.delMember = async b => { await sb().rpc('org_remove_member', { p_org: id, p_user: b.dataset.id }); audit('Удалён из состава'); settings(id); };
     H.addHook = async () => {
       if (!val('#wName') || !HOOK.test(val('#wUrl'))) return toast('Нужны название и ссылка вебхука Discord');
       await sb().from('org_webhooks').insert({ org_id: id, name: val('#wName'), url: val('#wUrl'), message: val('#wMsg') });
+      audit('Добавлен канал публикации', val('#wName'));
       settings(id);
     };
-    H.delHook = async b => { await sb().from('org_webhooks').delete().eq('id', b.dataset.id); settings(id); };
+    H.delHook = async b => { await sb().from('org_webhooks').delete().eq('id', b.dataset.id); audit('Удалён канал публикации'); settings(id); };
     H.delOrg = async () => { if (!await R.ask('Удалить организацию?', 'Доска, шаблоны и состав пропадут навсегда.')) return; await sb().from('orgs').delete().eq('id', id); location.hash = '#/orgs'; };
   }
 
@@ -329,8 +334,8 @@
     designer({
       items: () => D.templates,
       reload: () => load({ id }),
-      save: (row, tid) => { row.org_id = D.org.id; return tid ? sb().from('org_templates').update(row).eq('id', tid) : sb().from('org_templates').insert(row); },
-      del: tid => sb().from('org_templates').delete().eq('id', tid)
+      save: (row, tid) => { audit(tid ? 'Изменён шаблон' : 'Создан шаблон', row.title); row.org_id = D.org.id; return tid ? sb().from('org_templates').update(row).eq('id', tid) : sb().from('org_templates').insert(row); },
+      del: tid => { audit('Удалён шаблон'); return sb().from('org_templates').delete().eq('id', tid); }
     });
   }
 
@@ -500,6 +505,104 @@
     paint();
   }
 
+  const audit = (action, detail = '') => sb().from('org_audit').insert({ org_id: D.org.id, user_id: R.state.user.id, user_name: R.state.name || '', action, detail: String(detail).slice(0, 300) }).then(() => {});
+  const formLink = f => `${location.origin}${location.pathname}#/f/${f.slug}`;
+  const QT = { text: 'Короткий ответ', long: 'Длинный ответ', file: 'Картинка' };
+
+  async function forms(id) {
+    if (!await load({ id }) || !D.org.admin) return R.notFound('Нет доступа');
+    R.setCrumbs([['Организации', '#/orgs'], [D.org.name, '#/org/' + id], ['Формы']]);
+    R.view.classList.remove('wide');
+    const [f, a] = await Promise.all([sb().from('org_forms').select('id,slug,title,open').eq('org_id', id).order('created_at'), sb().from('org_answers').select('form_id').eq('org_id', id)]);
+    const cnt = {};
+    (a.data || []).forEach(x => { cnt[x.form_id] = (cnt[x.form_id] || 0) + 1; });
+    R.view.innerHTML = `<section class="page-head"><div><h1>Формы</h1><p>Анкеты и заявки: ответы сохраняются здесь и приходят в Discord. Заполнять могут вошедшие через Discord.</p></div><div class="actions"><a class="btn" href="#/org/${id}">К доске</a><button class="btn primary" data-o="newForm">${icon('plus')}Создать форму</button></div></section>${(f.data || []).length ? `<div class="list">${f.data.map(x => `<a class="row" href="#/org/${id}/forms/${x.id}"><span class="row-title">${esc(x.title)}</span><span class="row-meta">Ответов: ${cnt[x.id] || 0}${x.open ? '' : ', закрыта'}</span>${icon('chevron')}</a>`).join('')}</div>` : '<div class="empty"><h3>Форм пока нет</h3><p>Создайте первую.</p></div>'}`;
+    H.newForm = async () => {
+      const { data, error } = await sb().from('org_forms').insert({ org_id: id, title: 'Новая форма', questions: [{ id: R.uid(), t: 'Ваше имя', type: 'text', req: true }] }).select().single();
+      if (error) return toast('Не удалось создать форму');
+      audit('Создана форма', data.title);
+      location.hash = `#/org/${id}/forms/${data.id}`;
+    };
+  }
+
+  async function formEdit({ id, fid }) {
+    if (!await load({ id }) || !D.org.admin) return R.notFound('Нет доступа');
+    const { data: f } = await sb().from('org_forms').select('*').eq('id', fid).maybeSingle();
+    if (!f) return R.notFound('Форма не найдена');
+    const [ans, hooks] = await Promise.all([sb().from('org_answers').select('user_name,data,created_at').eq('form_id', fid).order('created_at', { ascending: false }).limit(100), sb().from('org_webhooks').select('id,name').eq('org_id', id)]);
+    R.setCrumbs([['Организации', '#/orgs'], [D.org.name, '#/org/' + id], ['Формы', `#/org/${id}/forms`], [f.title]]);
+    R.view.classList.remove('wide');
+    const list = ans.data || [];
+    R.view.innerHTML = `<section class="page-head"><div class="grow"><input class="title-input" data-f="title" value="${esc(f.title)}"><p class="save-state" id="fState">Сохранено</p></div><div class="actions"><button class="btn" data-o="fCopyLink">Копировать ссылку</button><button class="btn danger" data-o="fDel">Удалить</button></div></section><div class="set">
+      <section class="card"><label class="field"><span>Описание</span><textarea data-f="description" rows="2">${esc(f.description)}</textarea></label><label class="chk"><input type="checkbox" data-f="open" ${f.open ? 'checked' : ''}> Форма принимает ответы</label></section>
+      <section class="card"><h2>Вопросы</h2><div class="thread" id="qList"></div><button class="btn" data-o="addQ">${icon('plus')}Добавить вопрос</button></section>
+      <section class="card"><h2>Отправка в Discord</h2><label class="field"><span>Канал</span><select data-f="webhook_id"><option value="">Не отправлять</option>${(hooks.data || []).map(w => `<option value="${w.id}" ${w.id === f.webhook_id ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select></label><label class="field"><span>Текст сообщения</span><textarea data-f="message" rows="2" placeholder="&lt;@&amp;ID_РОЛИ&gt; новая заявка">${esc(f.message)}</textarea></label></section>
+      <section class="card"><h2>Ответы: ${list.length}</h2>${list.map(x => `<details class="note"><summary><b>${esc(x.user_name || 'Без имени')}</b><span class="tags">${R.fmtDate(x.created_at)}</span></summary><div class="note-body">${f.questions.map(q => `<p><b>${esc(q.t)}</b><br>${q.type === 'file' && x.data[q.id] ? `<img class="ans-img" src="${esc(x.data[q.id])}" alt="">` : esc(x.data[q.id] || '—')}</p>`).join('')}</div></details>`).join('') || '<p class="hint">Пока нет ответов</p>'}</section></div>`;
+    const qs = () => { $('#qList').innerHTML = f.questions.map((q, i) => `<div class="tsec"><span class="tnum">${i + 1}</span><input data-qi="${i}" data-qf="t" value="${esc(q.t)}" placeholder="Вопрос"><select data-qi="${i}" data-qf="type">${Object.entries(QT).map(([k, v]) => `<option value="${k}" ${q.type === k ? 'selected' : ''}>${v}</option>`).join('')}</select><label class="chk"><input type="checkbox" data-qi="${i}" data-qf="req" ${q.req ? 'checked' : ''}> Обязательный</label><button type="button" class="link-btn" data-o="delQ" data-i="${i}">Убрать</button></div>`).join(''); };
+    const save = deb(async () => {
+      $('#fState').textContent = 'Сохранение';
+      await sb().from('org_forms').update({ title: f.title, description: f.description, questions: f.questions, webhook_id: f.webhook_id || null, message: f.message, open: f.open }).eq('id', fid);
+      $('#fState').textContent = 'Сохранено';
+    }, 600);
+    R.view.oninput = R.view.onchange = e => {
+      const t = e.target;
+      const v = t.type === 'checkbox' ? t.checked : t.value;
+      if (t.dataset.f) f[t.dataset.f] = v;
+      else if (t.dataset.qi !== undefined) f.questions[+t.dataset.qi][t.dataset.qf] = v;
+      else return;
+      save();
+    };
+    H.addQ = () => { f.questions.push({ id: R.uid(), t: '', type: 'text', req: false }); qs(); save(); };
+    H.delQ = b => { f.questions.splice(+b.dataset.i, 1); qs(); save(); };
+    H.fCopyLink = () => R.copy(formLink(f), 'Ссылка скопирована');
+    H.fDel = async () => {
+      if (!await R.ask('Удалить форму?', 'Все ответы тоже будут удалены.')) return;
+      await sb().from('org_forms').delete().eq('id', fid);
+      audit('Удалена форма', f.title);
+      location.hash = `#/org/${id}/forms`;
+    };
+    qs();
+  }
+
+  async function formPublic(slug) {
+    R.view.classList.remove('wide');
+    const { data } = await sb().rpc('form_load', { p_slug: slug });
+    if (!data) return R.notFound('Форма не найдена');
+    const f = data.form;
+    R.setCrumbs([[data.org.name], [f.title]]);
+    const ans = {};
+    R.view.innerHTML = `<div class="pform"><section class="page-head"><div><h1>${esc(f.title)}</h1><p>${esc(f.description || '')} Для организации «${esc(data.org.name)}»</p></div></section>${f.open ? '' : '<div class="notice err">Форма закрыта</div>'}<div class="form">${f.questions.map((q, i) => `<div class="card"><h2><span class="tnum2">${i + 1}</span>${esc(q.t)}${q.req ? ' *' : ''}</h2>${q.type === 'long' ? `<textarea class="input" rows="4" data-q="${q.id}"></textarea>` : q.type === 'file' ? `<div class="up"><div class="up-prev" id="pv_${q.id}"><span>Нет</span></div><label class="btn">Выбрать картинку<input type="file" accept="image/*" data-qfile="${q.id}" hidden></label></div>` : `<input class="input" data-q="${q.id}">`}</div>`).join('')}</div><div class="actions" style="margin-top:16px"><button class="btn primary big" data-o="fSubmit" ${f.open ? '' : 'disabled'}>Отправить</button></div></div>`;
+    R.view.oninput = e => { if (e.target.dataset.q) ans[e.target.dataset.q] = e.target.value; };
+    R.view.onchange = async e => {
+      const q = e.target.dataset.qfile;
+      if (!q) return;
+      try { toast('Загрузка'); ans[q] = await uploadImage(e.target.files[0]); $('#pv_' + q).innerHTML = `<img src="${esc(ans[q])}" alt="">`; } catch (er) { toast('Не удалось загрузить картинку'); }
+    };
+    H.fSubmit = async b => {
+      for (const q of f.questions) if (q.req && !(ans[q.id] || '').trim()) return toast('Заполните: ' + q.t);
+      b.disabled = true;
+      const { error } = await sb().functions.invoke('submit-form', { body: { form_id: f.id, answers: ans } });
+      if (error) { b.disabled = false; return toast('Не удалось отправить'); }
+      R.view.innerHTML = '<div class="empty"><h3>Ответ отправлен</h3><p>Спасибо, организация его получила.</p></div>';
+    };
+  }
+
+  async function auditView(id) {
+    if (!await load({ id }) || !D.org.admin) return R.notFound('Нет доступа');
+    R.setCrumbs([['Организации', '#/orgs'], [D.org.name, '#/org/' + id], ['Журнал']]);
+    R.view.classList.remove('wide');
+    const { data } = await sb().from('org_audit').select('user_name,action,detail,created_at').eq('org_id', id).order('created_at', { ascending: false }).limit(300);
+    const rows = data || [];
+    R.view.innerHTML = `<section class="page-head"><div><h1>Журнал аудита</h1><p>Кто и что менял в организации. Последние 300 записей.</p></div><div class="actions"><a class="btn" href="#/org/${id}">К доске</a></div></section><div class="search-field">${icon('search')}<input class="input" id="aFilter" placeholder="Поиск по журналу"></div><div id="aList"></div>`;
+    const paint = () => {
+      const q = $('#aFilter').value.trim().toLowerCase();
+      const l = rows.filter(r => !q || `${r.user_name} ${r.action} ${r.detail}`.toLowerCase().includes(q));
+      $('#aList').innerHTML = l.length ? `<div class="list">${l.map(r => `<div class="row"><span class="row-title"><b>${esc(r.user_name || 'Система')}</b> ${esc(r.action)}${r.detail ? `, ${esc(r.detail)}` : ''}</span><span class="row-meta">${R.fmtDate(r.created_at)}</span></div>`).join('')}</div>` : '<div class="empty"><h3>Записей нет</h3></div>';
+    };
+    $('#aFilter').oninput = paint;
+    paint();
+  }
+
   const SL = { draft: 'Черновик', review: 'На подписи', signed: 'Подписан', rejected: 'Отклонён' };
   const localD = () => {
     D = { org: { name: R.store.get('profile', {}).org || 'revolutione', brand: {}, member: false, token: '', admin: true }, templates: [], webhooks: [], nodes: [], edges: [] };
@@ -554,6 +657,7 @@
           if (slug && !/^[a-z0-9-]{3,40}$/.test(slug)) return toast('Адрес: 3-40 символов, латиница, цифры, дефис');
           const { data, error } = await sb().from('orgs').insert({ name: f.get('name').trim(), owner: R.state.user.id, slug: slug || null }).select().single();
           if (error) return toast('Не удалось создать');
+          sb().from('org_audit').insert({ org_id: data.id, user_id: R.state.user.id, user_name: R.state.name || '', action: 'Создана организация', detail: data.name }).then(() => {});
           R.dlg.close();
           location.hash = '#/org/' + data.id;
         });
@@ -562,5 +666,5 @@
   };
   document.addEventListener('click', e => { const b = e.target.closest('[data-o]'); if (b && H[b.dataset.o]) H[b.dataset.o](b); });
 
-  window.ORG = { list, board, templates, settings, doc, ptemplates, pnew, pdoc };
+  window.ORG = { list, board, templates, settings, doc, ptemplates, pnew, pdoc, forms, formEdit, auditView, formPublic };
 })();
