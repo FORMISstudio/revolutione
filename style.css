@@ -552,3 +552,17 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.72); backdrop-filter: blur(4px); 
 dialog.dlg-wide { width: min(1000px, 96vw); max-height: 92vh; overflow: auto; }
 .fill { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
 @media (max-width: 760px) { .fill { grid-template-columns: 1fr; } }
+
+.fld { background: rgba(180, 242, 60, 0.16); color: var(--accent); border-radius: 5px; padding: 0 4px; font-weight: 500; }
+.set { display: flex; flex-direction: column; gap: 16px; max-width: 640px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; gap: 14px; animation: rise 0.45s both; }
+.card h2 { font-size: 18px; font-weight: 600; letter-spacing: -0.02em; }
+.card .hint { font-size: 13px; color: var(--dim); }
+.card input[type="color"] { height: 40px; padding: 2px; }
+.node.group { width: 220px; height: 44px; background: #101a14; border-color: #25401a; font-weight: 600; }
+.sheet { border-top: 3px solid var(--brand, var(--accent)); }
+.sheet-logo b, .sheet .stamp { color: var(--brand, var(--accent)); }
+.sheet-img { max-height: 48px; max-width: 70%; object-fit: contain; }
+.signs { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.sgn { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sgn input { background: var(--bg); border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 10px; font-size: 14px; min-width: 0; }
