@@ -613,3 +613,9 @@ dialog.dlg-wide { width: min(1000px, 96vw); max-height: 92vh; overflow: auto; }
 @media (max-width: 700px) { .lpage { zoom: 0.62; } .docwrap { padding: 20px 14px 80px; } .grid3 { grid-template-columns: 1fr; } }
 .lpage img.stamp { object-fit: contain; }
 img.avatar { object-fit: cover; display: block; }
+
+.up { display: flex; gap: 12px; align-items: center; }
+.up-prev { width: 96px; height: 96px; border: 1px dashed var(--line-2); border-radius: 10px; display: grid; place-items: center; overflow: hidden; background: #111; font-size: 12px; color: var(--dim); flex: none; }
+.up-prev img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.up .actions { flex-direction: column; align-items: flex-start; }
+label.btn { cursor: pointer; }

@@ -178,6 +178,8 @@
     R.setCrumbs([['Организации', '#/orgs'], [D.org.name, '#/org/' + id], ['Настройки']]);
     const [h, m] = await Promise.all([sb().from('org_webhooks').select('id,name,message').eq('org_id', id), sb().from('org_members').select('user_id,name,role').eq('org_id', id)]);
     const b = D.org.brand || {};
+    const br = { ...b };
+    const upw = (lbl, k) => `<div class="field"><span>${lbl}</span><div class="up"><div class="up-prev">${br[k] ? `<img src="${esc(br[k])}" alt="">` : '<span>Нет</span>'}</div><div class="actions"><label class="btn">Загрузить<input type="file" accept="image/*" data-bup="${k}" hidden></label>${br[k] ? `<button class="btn" data-o="bClear" data-k="${k}">Убрать</button>` : ''}</div></div></div>`;
     const link = `${location.origin}${location.pathname}#/v/${D.org.slug || D.org.token}`;
     R.view.innerHTML = `<section class="page-head"><div><h1>Настройки</h1><p>Адрес, оформление документов, состав и каналы публикации.</p></div><div class="actions"><a class="btn" href="#/org/${id}">К доске</a></div></section><div class="set">
       <section class="card"><h2>Основное</h2>
@@ -188,7 +190,7 @@
       <section class="card"><h2>Оформление листа</h2>
         <label class="field"><span>Цвет</span><input id="bColor" type="color" value="${esc(b.color || '#b4f23c')}"></label>
         <label class="field"><span>Строка в шапке</span><input id="bTitle" value="${esc(b.title || '')}" placeholder="Информационный документ"></label>
-        <label class="field"><span>Логотип (прямая https-ссылка на картинку)</span><input id="bLogo" value="${esc(b.logo || '')}" placeholder="https://..."></label>
+        ${upw('Логотип', 'logo')}${upw('Штамп (по умолчанию stamp.png)', 'stamp')}
         <div class="actions"><button class="btn primary" data-o="saveBrand">Сохранить</button></div></section>
       <section class="card"><h2>Состав</h2><p class="hint">Участники состава могут публиковать документы в Discord. Человек должен хотя бы раз войти на сайт.</p>
         ${(m.data || []).map(x => `<div class="row"><span class="row-title">${esc(x.name || 'Без имени')}</span><span class="row-meta">${x.role === 'admin' ? 'Лидер' : 'Состав'}</span>${x.role === 'admin' ? '' : `<button class="icon-btn danger" data-o="delMember" data-id="${x.user_id}" aria-label="Убрать">${icon('trash')}</button>`}</div>`).join('')}
@@ -200,6 +202,12 @@
         <label class="field"><span>Текст сообщения</span><textarea id="wMsg" rows="2" placeholder="&lt;@&amp;ID_РОЛИ&gt; новый документ"></textarea></label>
         <div class="actions"><button class="btn primary" data-o="addHook">Добавить канал</button></div></section></div>`;
     const val = q => $(q).value.trim();
+    R.view.querySelectorAll('[data-bup]').forEach(i => {
+      i.onchange = async e => {
+        try { toast('Загрузка'); br[i.dataset.bup] = await uploadImage(e.target.files[0]); await H.saveBrand(); settings(id); } catch (er) { toast('Не удалось загрузить картинку'); }
+      };
+    });
+    H.bClear = async b => { br[b.dataset.k] = ''; await H.saveBrand(); settings(id); };
     H.copyLink = b => R.copy(b.dataset.link, 'Ссылка скопирована');
     H.saveMain = async () => {
       const slug = val('#sSlug').toLowerCase();
@@ -210,7 +218,7 @@
       settings(id);
     };
     H.saveBrand = async () => {
-      const { error } = await sb().from('orgs').update({ brand: { color: val('#bColor'), title: val('#bTitle'), logo: val('#bLogo') } }).eq('id', id);
+      const { error } = await sb().from('orgs').update({ brand: { color: val('#bColor'), title: val('#bTitle'), logo: br.logo || '', stamp: br.stamp || '' } }).eq('id', id);
       toast(error ? 'Не удалось сохранить' : 'Оформление сохранено');
     };
     H.addMember = async () => { const { data } = await sb().rpc('org_add_member', { p_org: id, p_name: val('#mName') }); if (data !== 'ok') return toast(data || 'Ошибка'); settings(id); };
@@ -222,6 +230,22 @@
     };
     H.delHook = async b => { await sb().from('org_webhooks').delete().eq('id', b.dataset.id); settings(id); };
     H.delOrg = async () => { if (!await R.ask('Удалить организацию?', 'Доска, шаблоны и состав пропадут навсегда.')) return; await sb().from('orgs').delete().eq('id', id); location.hash = '#/orgs'; };
+  }
+
+  async function uploadImage(file) {
+    if (!file || !/^image\//.test(file.type)) throw new Error('Нужна картинка');
+    const bmp = await createImageBitmap(file);
+    const k = Math.min(1, (sb() ? 900 : 500) / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * k);
+    c.height = Math.round(bmp.height * k);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+    if (!sb() || !R.state.user) return new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
+    const path = `${R.state.user.id}/${R.uid()}.png`;
+    const { error } = await sb().storage.from('images').upload(path, blob, { contentType: 'image/png', cacheControl: '31536000' });
+    if (error) throw error;
+    return sb().storage.from('images').getPublicUrl(path).data.publicUrl;
   }
 
   const AL = { left: 'flex-start', center: 'center', right: 'flex-end', between: 'space-between' };
@@ -241,7 +265,7 @@
     spacer: [['h', 'Высота', 'n']],
     text: [['text', 'Текст (поля: {{title}}, {{code}}, {{date}}, {{org}}, {{author}})', 'a'], ['size', 'Размер', 'n'], ['weight', 'Жирность', ['400:Обычный', '500:Средний', '600:Жирный', '700:Очень жирный']], ['align', 'Выравнивание', SEL3], ['upper', 'Заглавные', 'c'], ['color', 'Цвет', 'col']],
     line: [['thick', 'Толщина', 'n'], ['w', 'Ширина, %', 'n'], ['color', 'Цвет', 'col']],
-    image: [['url', 'Ссылка на картинку'], ['w', 'Ширина', 'n']],
+    image: [['url', 'Картинка', 'img'], ['w', 'Ширина', 'n']],
     content: [['size', 'Размер текста', 'n'], ['align', 'Выравнивание', SEL3]],
     signers: []
   };
@@ -275,7 +299,7 @@
     if (b.type === 'line') return `<div class="ll${cls}" ${a}><i style="height:${+b.thick || 1}px;width:${+b.w || 100}%;background:${esc(b.color || 'currentColor')}"></i></div>`;
     if (b.type === 'image') return b.url ? `<img class="li${cls}" ${a} src="${esc(b.url)}" crossorigin="anonymous" alt="" style="width:${+b.w || 120}px">` : (c.edit ? `<div class="ph${cls}" ${a}>Изображение</div>` : '');
     if (b.type === 'content') return `<div class="lc${cls}" ${a} style="font-size:${+b.size || 14}px;text-align:${b.align || 'left'}">${c.content || (c.edit ? '<span class="ph">Содержимое документа</span>' : '')}</div>`;
-    return `<div class="ls${cls}" ${a}>${STAMP}<div class="signs">${c.signers.filter(x => x.name).map(x => `<div class="sign"><span>${esc(x.pos)}${x.pos ? ', ' : ''}${esc(x.name)}</span><i>${esc(x.name)}</i></div>`).join('')}</div></div>`;
+    return `<div class="ls${cls}" ${a}><img class="stamp" src="${esc((D.org.brand || {}).stamp || 'stamp.png')}" alt=""><div class="signs">${c.signers.filter(x => x.name).map(x => `<div class="sign"><span>${esc(x.pos)}${x.pos ? ', ' : ''}${esc(x.name)}</span><i>${esc(x.name)}</i></div>`).join('')}</div></div>`;
   }
   const pageHtml = (L, c, sel) => `<div class="lpage${c.edit ? ' edit' : ''}" style="background:${esc(L.page.bg)};color:${esc(L.page.color)};padding:${+L.page.pad || 0}px;--brand:${esc((D.org.brand || {}).color || '#b4f23c')}">${L.blocks.map(b => rb(b, c, sel)).join('')}</div>`;
 
@@ -291,10 +315,12 @@
     const a = `data-p="${k}"`;
     const inp = Array.isArray(t) ? `<select ${a}>${t.map(x => { const [val, lab] = x.split(':'); return `<option value="${val}" ${String(v) === val ? 'selected' : ''}>${lab}</option>`; }).join('')}</select>`
       : t === 'a' ? `<textarea ${a} rows="3">${esc(v)}</textarea>`
+      : t === 'img' ? `<div class="up"><div class="up-prev">${v ? `<img src="${esc(v)}" alt="">` : '<span>Нет</span>'}</div><div class="actions"><label class="btn">Загрузить<input type="file" accept="image/*" data-up="${k}" hidden></label>${v ? `<button type="button" class="btn" data-o="upClear" data-k="${k}">Убрать</button>` : ''}</div></div>`
       : t === 'c' ? `<input ${a} type="checkbox" ${v ? 'checked' : ''}>`
       : t === 'col' ? `<input ${a} type="color" value="${esc(v || '#ffffff')}">`
       : `<input ${a} ${t === 'n' ? 'type="number"' : ''} value="${esc(v)}">`;
-    return `<label class="field"><span>${l}</span>${inp}</label>`;
+    const tg = t === 'img' ? 'div' : 'label';
+    return `<${tg} class="field"><span>${l}</span>${inp}</${tg}>`;
   };
 
   async function templates(id) {
@@ -342,6 +368,12 @@
     R.view.oninput = R.view.onchange = e => {
       const t = e.target;
       if (t.dataset.t) { if (T) T[t.dataset.t] = t.value; return; }
+      if (t.dataset.up) {
+        const s = cur();
+        toast('Загрузка');
+        uploadImage(t.files[0]).then(u => { (s ? s.n : T.layout.page)[t.dataset.up] = u; snap(); refresh(); }).catch(() => toast('Не удалось загрузить картинку'));
+        return;
+      }
       if (!t.dataset.p || !T) return;
       const s = cur();
       (s ? s.n : T.layout.page)[t.dataset.p] = t.type === 'checkbox' ? t.checked : t.type === 'number' ? +t.value : t.value;
@@ -356,6 +388,7 @@
       if (nm) { s.n.name = nm; refresh(); snap(); }
     };
     H.pick = b => { sel = b.dataset.id; refresh(); };
+    H.upClear = b => { const s = cur(); if (s) { s.n[b.dataset.k] = ''; snap(); refresh(); } };
     H.addCmp = b => {
       const n = { id: R.uid(), type: b.dataset.t, ...clone(DEF[b.dataset.t]) };
       const s = cur();
