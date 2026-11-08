@@ -34,7 +34,9 @@
     R.view.innerHTML = `<section class="page-head"><div><h1>Организации</h1><p>Создайте организацию, соберите документооборот на доске и поделитесь ссылкой.</p></div><div class="actions"><button class="btn primary" data-o="newOrg">${icon('plus')}Создать организацию</button></div></section>${rows.length ? `<div class="list">${rows.map(r => `<a class="row" href="${r.role === 'admin' ? '#/org/' + r.orgs.id : '#/v/' + (r.orgs.slug || r.orgs.share_token)}"><span class="row-title">${esc(r.orgs.name)}</span><span class="row-meta">${r.role === 'admin' ? 'Админ' : 'Участник'}</span>${icon('chevron')}</a>`).join('')}</div>` : '<div class="empty"><h3>Организаций пока нет</h3><p>Создайте первую, чтобы начать.</p></div>'}`;
   }
 
-  const ZOOM = '<button class="bar-btn" data-z="out" aria-label="Отдалить">−</button><button class="bar-btn" data-z="in" aria-label="Приблизить">+</button><button class="bar-btn" data-z="fit" aria-label="По центру">⌖</button>';
+  const svgI = d => `<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
+  const ZOOM = `<button class="bar-btn" data-z="out" aria-label="Отдалить">${svgI('M5 12h14')}</button><button class="bar-btn" data-z="in" aria-label="Приблизить">${svgI('M12 5v14M5 12h14')}</button><button class="bar-btn" data-z="fit" aria-label="По центру">${svgI('M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4')}</button>`;
+
 
   async function board(arg) {
     if (!await load(arg)) return R.notFound('Организация не найдена или нет доступа');
