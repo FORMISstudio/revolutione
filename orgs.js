@@ -34,6 +34,8 @@
     R.view.innerHTML = `<section class="page-head"><div><h1>Организации</h1><p>Создайте организацию, соберите документооборот на доске и поделитесь ссылкой.</p></div><div class="actions"><button class="btn primary" data-o="newOrg">${icon('plus')}Создать организацию</button></div></section>${rows.length ? `<div class="list">${rows.map(r => `<a class="row" href="${r.role === 'admin' ? '#/org/' + r.orgs.id : '#/v/' + (r.orgs.slug || r.orgs.share_token)}"><span class="row-title">${esc(r.orgs.name)}</span><span class="row-meta">${r.role === 'admin' ? 'Админ' : 'Участник'}</span>${icon('chevron')}</a>`).join('')}</div>` : '<div class="empty"><h3>Организаций пока нет</h3><p>Создайте первую, чтобы начать.</p></div>'}`;
   }
 
+  const ZOOM = '<button class="bar-btn" data-z="out" aria-label="Отдалить">−</button><button class="bar-btn" data-z="in" aria-label="Приблизить">+</button><button class="bar-btn" data-z="fit" aria-label="По центру">⌖</button>';
+
   async function board(arg) {
     if (!await load(arg)) return R.notFound('Организация не найдена или нет доступа');
     edit = !!arg.id && D.org.admin;
@@ -41,8 +43,8 @@
     R.view.classList.add('wide');
     const link = `${location.origin}/o/${D.org.slug || D.org.token}`;
     const bar = edit
-      ? `<button class="bar-btn" data-o="addDoc" title="Документ" aria-label="Добавить документ">${icon('file')}</button><button class="bar-btn" data-o="addNote" title="Заметка" aria-label="Добавить заметку">${icon('note')}</button><button class="bar-btn" data-o="addGroup" title="Группа" aria-label="Добавить группу">${icon('folder')}</button><button class="bar-btn" id="connBtn" data-o="connect" title="Соединить" aria-label="Соединить карточки">${icon('link')}</button><button class="bar-btn" data-o="copyLink" data-link="${esc(link)}" title="Ссылка для зрителей" aria-label="Копировать ссылку для зрителей">${icon('copy')}</button>`
-      : `<span class="bar-note">${esc(D.org.name)}: нажмите на документ, чтобы заполнить</span>${D.org.admin ? `<a class="btn" href="#/org/${D.org.id}">Управлять</a>` : ''}`;
+      ? `<button class="bar-btn" data-o="addDoc" title="Документ" aria-label="Добавить документ">${icon('file')}</button><button class="bar-btn" data-o="addNote" title="Заметка" aria-label="Добавить заметку">${icon('note')}</button><button class="bar-btn" data-o="addGroup" title="Группа" aria-label="Добавить группу">${icon('folder')}</button><button class="bar-btn" id="connBtn" data-o="connect" title="Соединить" aria-label="Соединить карточки">${icon('link')}</button><button class="bar-btn" data-o="copyLink" data-link="${esc(link)}" title="Ссылка для зрителей" aria-label="Копировать ссылку для зрителей">${icon('copy')}</button>${ZOOM}`
+      : `${ZOOM}<span class="bar-note">${esc(D.org.name)}: нажмите на документ, чтобы заполнить</span>${D.org.admin ? `<a class="btn" href="#/org/${D.org.id}">Управлять</a>` : ''}`;
     R.view.innerHTML = `<div class="board" id="board"><div class="board-inner" id="boardInner"></div><div class="board-bar"><div class="bar-group wrap">${bar}</div></div></div>`;
     const box = $('#board');
     const inner = $('#boardInner');
@@ -65,7 +67,7 @@
       paintEdges();
     };
     redraw();
-    const v = { x: 40, y: 60, k: 1 };
+    const v = { x: 24, y: 60, k: innerWidth < 700 ? 0.7 : 1 };
     const apply = () => { inner.style.transform = `translate(${v.x}px,${v.y}px) scale(${v.k})`; };
     apply();
     let drag = null;
@@ -81,7 +83,7 @@
       if (!el) drag = { x: e.clientX - v.x, y: e.clientY - v.y };
     });
     const mv = e => {
-      if (!box.isConnected) return;
+      if (!box.isConnected || box.dataset.pinch) return;
       if (dn) {
         moved++;
         dn.n.x = Math.round(dn.ox + (e.clientX - dn.sx) / v.k);
@@ -96,12 +98,19 @@
       dn = null;
       drag = null;
     };
+    R.pinch(box, v, apply);
     if (offBoard) offBoard();
     window.addEventListener('pointermove', mv);
     window.addEventListener('pointerup', up);
     offBoard = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
-    box.addEventListener('wheel', e => { e.preventDefault(); v.k = Math.min(2, Math.max(0.4, v.k * (e.deltaY < 0 ? 1.1 : 0.9))); apply(); }, { passive: false });
+    box.addEventListener('wheel', e => { e.preventDefault(); v.k = Math.min(2.5, Math.max(0.3, v.k * (e.deltaY < 0 ? 1.1 : 0.9))); apply(); }, { passive: false });
     box.addEventListener('click', async e => {
+      const z = e.target.closest('[data-z]');
+      if (z) {
+        if (z.dataset.z === 'fit') { v.x = 24; v.y = 60; v.k = innerWidth < 700 ? 0.7 : 1; } else v.k = Math.min(2.5, Math.max(0.3, v.k * (z.dataset.z === 'in' ? 1.25 : 0.8)));
+        apply();
+        return;
+      }
       if (e.target.closest('.board-bar') || moved > 4) return;
       const ed = e.target.closest('[data-e]');
       if (ed && edit) {

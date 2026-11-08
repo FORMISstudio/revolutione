@@ -211,8 +211,7 @@
     },
     {
       id: 'settings', label: 'Настройки', icon: 'sliders', items: [
-        { label: 'Профиль', href: '#/settings' },
-        { label: 'Данные и источник', href: '#/settings/data' }
+        { label: 'Профиль', href: '#/settings' }
       ]
     }
   ];
@@ -320,7 +319,7 @@
   const articlesOf = id => store.get(skey('art.' + id), null) || (!sb && DEMO[id]) || null;
   const myDocs = () => store.get(skey('mydocs'), []);
   const saveMyDocs = d => store.set(skey('mydocs'), d);
-  const notes = () => store.get(skey('notes'), [{ id: 'welcome', title: 'Как пользоваться revolutione', tags: 'старт', text: 'Законы: загрузите документы с форума Majestic по ссылке или вставьте текст, затем ищите по статьям.\nДокументы: выберите шаблон, заполните поля и скопируйте готовый BB-код для форума.\nАссистент: опишите ситуацию, и он подберёт статьи из загруженных документов.\nCtrl K открывает поиск по всему сайту.' }]);
+  const notes = () => store.get(skey('notes'), []);
   const saveNotes = n => store.set(skey('notes'), n);
   const profile = () => store.get('profile', { name: '', rank: '', org: '' });
   const meName = () => { const p = profile(); return [[p.rank, p.name].filter(Boolean).join(' '), p.org].filter(Boolean).join(', '); };
@@ -540,12 +539,13 @@
     view.innerHTML = `<div class="board" id="board"><div class="board-inner" id="boardInner"><svg class="threads" width="1000" height="${y + 80}">${edges.map(link).join('')}</svg>${nodes.map((n, i) => `<button class="node ${n.k}" style="left:${n.x}px;top:${n.y}px;animation-delay:${i * 45}ms" data-id="${n.id}"><small>${esc(n.tag)}</small>${esc(n.l)}</button>`).join('')}</div><div class="board-bar"><div class="bar-group"><button class="bar-btn" data-z="fit" aria-label="По центру">${icon('search')}</button><button class="bar-btn" data-z="in" aria-label="Приблизить">${icon('plus')}</button><button class="bar-btn" data-z="out" aria-label="Отдалить">−</button></div><div class="bar-group"><a class="bar-btn" href="#/paperwork/new" aria-label="Новый документ">${icon('file')}</a></div></div></div>`;
     const box = $('#board');
     const inner = $('#boardInner');
-    const v = { x: 40, y: 60, k: 1 };
+    const v = { x: 40, y: 60, k: innerWidth < 700 ? 0.7 : 1 };
     const apply = () => { inner.style.transform = `translate(${v.x}px,${v.y}px) scale(${v.k})`; };
-    const zoom = f => { v.k = Math.min(2, Math.max(0.4, v.k * f)); apply(); };
+    const zoom = f => { v.k = Math.min(2.5, Math.max(0.3, v.k * f)); apply(); };
     let drag = null;
     let moved = 0;
     apply();
+    pinch(box, v, apply);
     let dn = null;
     const paint = () => { $('.threads', box).innerHTML = edges.map(link).join(''); };
     box.addEventListener('pointerdown', e => {
@@ -556,7 +556,7 @@
       drag = { x: e.clientX - v.x, y: e.clientY - v.y };
     });
     window.addEventListener('pointermove', e => {
-      if (!box.isConnected) return;
+      if (!box.isConnected || box.dataset.pinch) return;
       if (dn) {
         moved++;
         dn.n.x = Math.round(dn.ox + (e.clientX - dn.sx) / v.k);
@@ -883,31 +883,16 @@
     paint();
   }
 
-  function viewSettings(tab) {
-    setCrumbs([['Настройки', '#/settings'], [tab === 'data' ? 'Данные и источник' : 'Профиль']]);
-    const tabs = `<div class="tabs"><a class="${tab === 'profile' ? 'on' : ''}" href="#/settings">Профиль</a><a class="${tab === 'data' ? 'on' : ''}" href="#/settings/data">Данные и источник</a></div>`;
-    if (tab === 'profile') {
-      const p = profile();
-      view.innerHTML = `<section class="page-head"><div><h1>Профиль</h1><p>Эти данные подставляются в документы как автор и должность.</p></div></section>${tabs}${sb ? `<p class="hint" style="margin-bottom:16px">Аккаунт: ${esc(state.name || '')}. Профиль, шаблоны и документы хранятся в этом аккаунте и не зависят от браузера.</p>` : ''}
-        <form class="panel" id="profileForm" autocomplete="off">
+  function viewSettings() {
+    setCrumbs([['Настройки']]);
+    const p = profile();
+    view.innerHTML = `<section class="page-head"><div><h1>Профиль</h1><p>Эти данные подставляются в документы как автор и должность.</p></div></section>
+      <div class="panel">
+        <form class="panel" id="profileForm" autocomplete="off" style="max-width:none">
           <label class="field"><span>Имя и фамилия персонажа</span><input name="name" value="${esc(p.name)}" placeholder="Имя Фамилия"></label>
           <label class="field"><span>Звание или должность</span><input name="rank" value="${esc(p.rank)}" placeholder="Офицер"></label>
           <label class="field"><span>Организация</span><input name="org" value="${esc(p.org)}" placeholder="LSPD"></label>
-        </form>`;
-      $('#profileForm').addEventListener('input', debounce(e => {
-        store.set('profile', Object.fromEntries(new FormData($('#profileForm'))));
-        renderFoot();
-      }, 250));
-      return;
-    }
-    view.innerHTML = `<section class="page-head"><div><h1>Данные и источник</h1><p>Настройки загрузки с Majestic и резервная копия.</p></div></section>${tabs}
-      <div class="panel">
-        <h2>Хранилище</h2>
-        <p class="hint" id="storageInfo">Проверка</p>
-        <div class="divider"></div>
-        <h2>Загрузка по ссылкам</h2>
-        <label class="field"><span>CORS-прокси</span><input id="proxyInput" value="${esc(store.get('proxy', 'https://corsproxy.io/?url='))}" placeholder="https://corsproxy.io/?url="></label>
-        <p class="hint">Нужен только если сайт открыт без server.js. Через server.js ссылки скачиваются на сервере и прокси не используется.</p>
+        </form>
         <div class="divider"></div>
         <h2>Резервная копия</h2>
         <div class="actions">
@@ -916,8 +901,10 @@
           <button class="btn danger" data-act="wipe">Очистить всё</button>
         </div>
       </div>`;
-    $('#proxyInput').addEventListener('input', e => store.set('proxy', e.target.value.trim()));
-    storageInfo();
+    $('#profileForm').addEventListener('input', debounce(() => {
+      store.set('profile', Object.fromEntries(new FormData($('#profileForm'))));
+      renderFoot();
+    }, 250));
     $('#importFile').addEventListener('change', async e => {
       const f = e.target.files[0];
       if (!f) return;
@@ -1413,6 +1400,36 @@
     if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !dlg.open && !pal.open) { e.preventDefault(); openPalette(); }
   });
 
+  function pinch(box, v, apply) {
+    const pts = new Map();
+    let d0 = 0;
+    let k0 = 1;
+    box.addEventListener('pointerdown', e => {
+      pts.set(e.pointerId, [e.clientX, e.clientY]);
+      if (pts.size === 2) { const [p, q] = [...pts.values()]; d0 = Math.hypot(p[0] - q[0], p[1] - q[1]); k0 = v.k; box.dataset.pinch = '1'; }
+    });
+    box.addEventListener('pointermove', e => {
+      if (!pts.has(e.pointerId)) return;
+      pts.set(e.pointerId, [e.clientX, e.clientY]);
+      if (pts.size !== 2 || !d0) return;
+      const [p, q] = [...pts.values()];
+      const k = Math.min(2.5, Math.max(0.3, k0 * Math.hypot(p[0] - q[0], p[1] - q[1]) / d0));
+      const r = box.getBoundingClientRect();
+      const cx = (p[0] + q[0]) / 2 - r.left;
+      const cy = (p[1] + q[1]) / 2 - r.top;
+      v.x = cx - (cx - v.x) * (k / v.k);
+      v.y = cy - (cy - v.y) * (k / v.k);
+      v.k = k;
+      apply();
+    });
+    const end = e => {
+      pts.delete(e.pointerId);
+      if (pts.size < 2) { d0 = 0; setTimeout(() => { if (pts.size < 2) delete box.dataset.pinch; }, 80); }
+    };
+    box.addEventListener('pointerup', end);
+    box.addEventListener('pointercancel', end);
+  }
+
   const csClose = () => $$('.cs.open').forEach(c => c.classList.remove('open'));
 
   function enhance() {
@@ -1426,6 +1443,7 @@
       const txt = () => { w.querySelector('span').textContent = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : ''; };
       txt();
       sel.addEventListener('change', txt);
+      new MutationObserver(txt).observe(sel, { childList: true });
       w.addEventListener('click', e => {
         const b = e.target.closest('.cs-btn');
         const o = e.target.closest('.cs-opt');
@@ -1468,7 +1486,7 @@
   });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') csClose(); });
 
-  window.REV = { store, skey, myDocs, saveMyDocs, createDoc, $, esc, icon, view, state, toast, copy, openDialog, dlg, ask, setCrumbs, notFound, fmtDate, uid, sanitize, rich, route, get sb() { return sb; } };
+  window.REV = { pinch, store, skey, myDocs, saveMyDocs, createDoc, $, esc, icon, view, state, toast, copy, openDialog, dlg, ask, setCrumbs, notFound, fmtDate, uid, sanitize, rich, route, get sb() { return sb; } };
 
   const select = $('#serverSelect');
   select.addEventListener('change', () => {
