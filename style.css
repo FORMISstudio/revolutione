@@ -708,3 +708,11 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
 
 .bar-note { max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; align-self: center; }
 .board { overscroll-behavior: contain; }
+
+.node.colored { border-color: var(--nc); background: color-mix(in srgb, var(--nc) 16%, #0b0b0c); }
+.node.colored small { color: var(--nc); }
+.node-tb { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; padding: 8px 10px; max-width: 96vw; overflow-x: auto; background: rgba(20, 20, 22, 0.92); backdrop-filter: blur(10px); border: 1px solid var(--line-2); border-radius: 14px; z-index: 6; animation: rise 0.18s both; }
+.node-tb .sw { width: 26px; height: 26px; flex: none; border-radius: 50%; border: 2px solid var(--line-2); background: #26272b; padding: 0; transition: transform 0.12s, border-color 0.12s; }
+.node-tb .sw:hover { transform: scale(1.1); }
+.node-tb .sw.on { border-color: #fff; transform: scale(1.12); }
+.node-tb .sep { width: 1px; height: 22px; background: var(--line-2); flex: none; }

@@ -34,7 +34,7 @@
     R.view.innerHTML = `<section class="page-head"><div><h1>Организации</h1><p>Создайте организацию, соберите документооборот на доске и поделитесь ссылкой.</p></div><div class="actions"><button class="btn primary" data-o="newOrg">${icon('plus')}Создать организацию</button></div></section>${rows.length ? `<div class="list">${rows.map(r => `<a class="row" href="${r.role === 'admin' ? '#/org/' + r.orgs.id : '#/v/' + (r.orgs.slug || r.orgs.share_token)}"><span class="row-title">${esc(r.orgs.name)}</span><span class="row-meta">${r.role === 'admin' ? 'Админ' : 'Участник'}</span>${icon('chevron')}</a>`).join('')}</div>` : '<div class="empty"><h3>Организаций пока нет</h3><p>Создайте первую, чтобы начать.</p></div>'}`;
   }
 
-  const ZOOM = '<button class="bar-btn" data-z="out" aria-label="Отдалить">−</button><button class="bar-btn" data-z="in" aria-label="Приблизить">+</button><button class="bar-btn" data-z="fit" aria-label="По центру">⌖</button>';
+  const ZOOM = `<button class="bar-btn" data-z="out" aria-label="Отдалить">${icon('minus')}</button><button class="bar-btn" data-z="in" aria-label="Приблизить">${icon('plus')}</button><button class="bar-btn" data-z="fit" aria-label="По центру">${icon('fit')}</button>`;
 
   async function board(arg) {
     if (!await load(arg)) return R.notFound('Организация не найдена или нет доступа');
@@ -62,11 +62,20 @@
       return `<path class="hit" data-e="${e.id}" d="${d}"/><path d="${d}"/>`;
     };
     const paintEdges = () => { $('.threads', box).innerHTML = D.edges.map(path).join(''); };
+    let selId = null;
+    const NC = ['', '#b4f23c', '#4ade80', '#60a5fa', '#c084fc', '#f87171', '#fbbf24'];
     redraw = () => {
-      inner.innerHTML = `<svg class="threads" width="1" height="1"></svg>${D.nodes.map((n, i) => `<button class="node ${n.kind}" style="left:${n.x}px;top:${n.y}px;animation-delay:${i * 30}ms" data-id="${n.id}"><small>${{ note: 'Заметка', doc: 'Документ', group: 'Группа' }[n.kind]}</small>${esc(n.kind === 'note' ? (n.body || n.title) : n.title)}</button>`).join('')}`;
+      inner.innerHTML = `<svg class="threads" width="1" height="1"></svg>${D.nodes.map((n, i) => `<button class="node ${n.kind}${n.color ? ' colored' : ''}${n.id === selId ? ' pick' : ''}" style="left:${n.x}px;top:${n.y}px;animation-delay:${i * 30}ms${n.color ? `;--nc:${esc(n.color)}` : ''}" data-id="${n.id}"><small>${{ note: 'Заметка', doc: 'Документ', group: 'Группа' }[n.kind]}</small>${esc(n.kind === 'note' ? (n.body || n.title) : n.title)}</button>`).join('')}`;
       paintEdges();
     };
     redraw();
+    const tb = () => {
+      let el = $('#nodeTb', box);
+      if (!selId) { if (el) el.remove(); return; }
+      const n = get(selId);
+      if (!el) { el = document.createElement('div'); el.id = 'nodeTb'; el.className = 'node-tb'; box.append(el); }
+      el.innerHTML = `${NC.map(c => `<button class="sw${(n.color || '') === c ? ' on' : ''}" data-nc="${c}" style="${c ? `background:${c}` : ''}" aria-label="Цвет"></button>`).join('')}<span class="sep"></span>${n.kind === 'doc' ? '<button class="btn" data-o="nodeOpen">Открыть</button>' : '<button class="btn" data-o="nodeEdit">Изменить</button>'}<button class="icon-btn danger" data-o="nodeDel" aria-label="Удалить">${icon('trash')}</button>`;
+    };
     const v = { x: 24, y: 60, k: innerWidth < 700 ? 0.7 : 1 };
     const apply = () => { inner.style.transform = `translate(${v.x}px,${v.y}px) scale(${v.k})`; };
     apply();
@@ -76,7 +85,7 @@
     let conn = false;
     let first = null;
     box.addEventListener('pointerdown', e => {
-      if (e.target.closest('.board-bar')) return;
+      if (e.target.closest('.board-bar, .node-tb')) return;
       moved = 0;
       const el = e.target.closest('.node');
       if (el && edit && !conn) { const n = get(el.dataset.id); dn = { el, n, sx: e.clientX, sy: e.clientY, ox: n.x, oy: n.y }; return; }
@@ -111,14 +120,20 @@
         apply();
         return;
       }
-      if (e.target.closest('.board-bar') || moved > 4) return;
+      const sw = e.target.closest('[data-nc]');
+      if (sw) {
+        const n0 = get(selId);
+        if (n0) { n0.color = sw.dataset.nc; sb().from('org_nodes').update({ color: n0.color }).eq('id', n0.id).then(() => {}); redraw(); tb(); }
+        return;
+      }
+      if (e.target.closest('.board-bar, .node-tb') || moved > 4) return;
       const ed = e.target.closest('[data-e]');
       if (ed && edit) {
         if (await R.ask('Удалить связь?', 'Карточки останутся на доске.')) { await sb().from('org_edges').delete().eq('id', ed.dataset.e); D.edges = D.edges.filter(x => x.id !== ed.dataset.e); paintEdges(); }
         return;
       }
       const el = e.target.closest('.node');
-      if (!el) return;
+      if (!el) { if (selId) { selId = null; redraw(); tb(); } return; }
       const n = get(el.dataset.id);
       if (conn) {
         if (!first) { first = n.id; el.classList.add('pick'); return; }
@@ -130,14 +145,23 @@
         redraw();
         return;
       }
-      if (edit) { if (n.kind === 'note') return noteDlg(n); if (n.kind === 'group') return groupDlg(n); location.hash = '#/org/' + D.org.id + '/doc/' + n.id; return; }
-      if (n.kind === 'doc') location.hash = '#/d/' + (D.org.slug || D.org.token) + '/' + n.id; else R.openDialog(`<div class="dlg-body"><h2>${esc(n.title || 'Заметка')}</h2><p class="muted" style="white-space:pre-wrap">${esc(n.body)}</p><div class="dlg-actions"><button class="btn" data-close>Закрыть</button></div></div>`);
+      if (edit) { selId = n.id; redraw(); tb(); return; }
+      if (n.kind === 'doc') R.go('#/d/' + (D.org.slug || D.org.token) + '/' + n.id); else R.openDialog(`<div class="dlg-body"><h2>${esc(n.title || 'Заметка')}</h2><p class="muted" style="white-space:pre-wrap">${esc(n.body)}</p><div class="dlg-actions"><button class="btn" data-close>Закрыть</button></div></div>`);
     });
     box.addEventListener('mousedown', () => {});
     H.connect = b => { conn = !conn; first = null; b.classList.toggle('primary', conn); redraw(); toast(conn ? 'Нажмите на две карточки, чтобы соединить' : 'Режим соединения выключен'); };
     H.addNote = () => addNode('note');
     H.addDoc = () => addNode('doc');
     H.addGroup = () => addNode('group');
+    H.nodeOpen = () => { R.go('#/org/' + D.org.id + '/doc/' + selId); };
+    H.nodeEdit = () => { const n = get(selId); if (n.kind === 'note') noteDlg(n); else groupDlg(n); };
+    H.nodeDel = async () => {
+      if (!await R.ask('Удалить карточку?', 'Связи тоже исчезнут.')) return;
+      const n = get(selId);
+      selId = null;
+      await delNode(n);
+      tb();
+    };
     H.copyLink = b => R.copy(b.dataset.link, 'Ссылка скопирована');
   }
 
@@ -148,7 +172,7 @@
     D.nodes.push(data);
     audit('Добавлена карточка', kind === 'doc' ? 'документ' : kind === 'group' ? 'группа' : 'заметка');
     redraw();
-    if (kind === 'note') noteDlg(data); else if (kind === 'group') groupDlg(data); else location.hash = '#/org/' + D.org.id + '/doc/' + data.id;
+    if (kind === 'note') noteDlg(data); else if (kind === 'group') groupDlg(data); else R.go('#/org/' + D.org.id + '/doc/' + data.id);
   }
 
   function noteDlg(n) {
@@ -246,7 +270,7 @@
       settings(id);
     };
     H.delHook = async b => { await sb().from('org_webhooks').delete().eq('id', b.dataset.id); audit('Удалён канал публикации'); settings(id); };
-    H.delOrg = async () => { if (!await R.ask('Удалить организацию?', 'Доска, шаблоны и состав пропадут навсегда.')) return; await sb().from('orgs').delete().eq('id', id); location.hash = '#/orgs'; };
+    H.delOrg = async () => { if (!await R.ask('Удалить организацию?', 'Доска, шаблоны и состав пропадут навсегда.')) return; await sb().from('orgs').delete().eq('id', id); R.go('#/orgs'); };
   }
 
   async function uploadImage(file) {
@@ -534,7 +558,7 @@
       const { data, error } = await sb().from('org_forms').insert({ org_id: id, title: 'Новая форма', questions: [{ id: R.uid(), t: 'Ваше имя', type: 'text', req: true }] }).select().single();
       if (error) return toast('Не удалось создать форму');
       audit('Создана форма', data.title);
-      location.hash = `#/org/${id}/forms/${data.id}`;
+      R.go(`#/org/${id}/forms/${data.id}`);
     };
   }
 
@@ -572,7 +596,7 @@
       if (!await R.ask('Удалить форму?', 'Все ответы тоже будут удалены.')) return;
       await sb().from('org_forms').delete().eq('id', fid);
       audit('Удалена форма', f.title);
-      location.hash = `#/org/${id}/forms`;
+      R.go(`#/org/${id}/forms`);
     };
     qs();
   }
@@ -672,7 +696,7 @@
           if (error) return toast('Не удалось создать');
           sb().from('org_audit').insert({ org_id: data.id, user_id: R.state.user.id, user_name: R.state.name || '', action: 'Создана организация', detail: data.name }).then(() => {});
           R.dlg.close();
-          location.hash = '#/org/' + data.id;
+          R.go('#/org/' + data.id);
         });
       });
     }
