@@ -163,7 +163,19 @@
     trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>',
     refresh: '<path d="M20 11a8 8 0 0 0-14-4L4 9M4 4v5h5M4 13a8 8 0 0 0 14 4l2-2M20 20v-5h-5"/>',
     edit: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/>',
-    out: '<path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3M16 8l4 4-4 4M20 12H9"/>'
+    out: '<path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3M16 8l4 4-4 4M20 12H9"/>',
+    bold: '<path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z"/>',
+    italic: '<path d="M19 5h-9M14 19H5M15 5L9 19"/>',
+    underline: '<path d="M7 4v7a5 5 0 0 0 10 0V4M5 20h14"/>',
+    ul: '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>',
+    ol: '<path d="M10 6h10M10 12h10M10 18h10M4 5l1.5-1v5M3.5 14.5c.7-1 2.5-.7 2.5.5 0 1-2.5 1.5-2.5 2.5h2.5"/>',
+    alignL: '<path d="M4 6h16M4 10h10M4 14h16M4 18h10"/>',
+    alignC: '<path d="M4 6h16M7 10h10M4 14h16M7 18h10"/>',
+    alignR: '<path d="M4 6h16M10 10h10M4 14h16M10 18h10"/>',
+    marker: '<path d="M9 11l4 4M4 20l4-1 11-11a2.1 2.1 0 0 0-3-3L5 16z"/>',
+    folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    note: '<path d="M5 4h14v12l-5 5H5z"/><path d="M14 21v-5h5M8 9h8M8 13h4"/>'
   };
 
   const NAV = [
@@ -207,6 +219,12 @@
 
   const ADMIN = { id: 'admin', label: 'Админ', icon: 'sliders', items: [{ label: 'Импорт документов', href: '#/admin' }] };
   const ORGS = { id: 'orgs', label: 'Организации', icon: 'spark', items: [{ label: 'Мои организации', href: '#/orgs' }] };
+  const orgNav = () => {
+    const m = state.path.match(/^\/org\/([\w-]+)/);
+    if (!m) return [];
+    const b = '#/org/' + m[1];
+    return [{ id: 'org', label: 'Организация', icon: 'scale', items: [{ label: 'Доска', href: b }, { label: 'Шаблоны', href: b + '/templates' }, { label: 'Формы', href: b + '/forms' }, { label: 'Журнал', href: b + '/audit' }, { label: 'Настройки', href: b + '/settings' }] }];
+  };
   const LAWACT = ['addDoc', 'bulkImport', 'syncAll'];
   const canEdit = () => !sb || state.role === 'admin';
 
@@ -363,11 +381,13 @@
     return state.path === p
       || (p === '/legal' && state.path.startsWith('/legal/doc'))
       || (p === '/paperwork' && state.path.startsWith('/paperwork/edit'))
-      || (p === '/orgs' && /^\/(org|v|d|f)\//.test(state.path));
+      || (p === '/orgs' && /^\/(org|v|d|f)\//.test(state.path))
+      || (/^\/org\/[\w-]+\/(forms|templates)$/.test(p) && state.path.startsWith(p + '/'))
+      || (/^\/org\/[\w-]+$/.test(p) && state.path.startsWith(p + '/doc'));
   };
 
   function renderNav() {
-    $('#nav').innerHTML = NAV.concat(sb ? [ORGS] : [], state.role === 'admin' ? [ADMIN] : []).map(s => {
+    $('#nav').innerHTML = NAV.concat(sb ? [ORGS] : [], orgNav(), state.role === 'admin' ? [ADMIN] : []).map(s => {
       const active = s.items.some(i => i.href && isActive(i.href));
       const open = !!state.open[s.id];
       const items = s.items.filter(i => !sb || state.role === 'admin' || !LAWACT.includes(i.action)).map(i => i.href
@@ -868,7 +888,7 @@
     const tabs = `<div class="tabs"><a class="${tab === 'profile' ? 'on' : ''}" href="#/settings">Профиль</a><a class="${tab === 'data' ? 'on' : ''}" href="#/settings/data">Данные и источник</a></div>`;
     if (tab === 'profile') {
       const p = profile();
-      view.innerHTML = `<section class="page-head"><div><h1>Профиль</h1><p>Эти данные подставляются в поля «От кого», «Задержал» и «Санкционировал».</p></div></section>${tabs}
+      view.innerHTML = `<section class="page-head"><div><h1>Профиль</h1><p>Эти данные подставляются в документы как автор и должность.</p></div></section>${tabs}${sb ? `<p class="hint" style="margin-bottom:16px">Аккаунт: ${esc(state.name || '')}. Профиль, шаблоны и документы хранятся в этом аккаунте и не зависят от браузера.</p>` : ''}
         <form class="panel" id="profileForm" autocomplete="off">
           <label class="field"><span>Имя и фамилия персонажа</span><input name="name" value="${esc(p.name)}" placeholder="Имя Фамилия"></label>
           <label class="field"><span>Звание или должность</span><input name="rank" value="${esc(p.rank)}" placeholder="Офицер"></label>
@@ -1209,8 +1229,13 @@
     },
     openDrawer() { app.classList.add('drawer'); },
     newTpl() { tplDialog(); },
-    login() { sessionStorage.setItem('rev.next', location.hash); if (sb) sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + location.pathname } }); },
-    logout() { if (sb) sb.auth.signOut(); },
+    login() { sessionStorage.setItem('rev.next', location.hash); if (sb) sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + location.pathname, queryParams: { prompt: 'consent' } } }); },
+    async logout() {
+      if (!sb) return;
+      await store.push();
+      store.keys().filter(k => !/\.(docs|art\..+)$/.test(k)).forEach(k => localStorage.removeItem('rev.' + k));
+      await sb.auth.signOut();
+    },
     addSec() { state.cur.doc.sections = (state.cur.doc.sections || []).concat({ t: '', x: '' }); state.cur.redraw(); },
     delSec(b) { state.cur.doc.sections.splice(+b.dataset.i, 1); state.cur.redraw(); },
     exportPng() {
@@ -1359,6 +1384,7 @@
     if (!state.params.get('a')) window.scrollTo(0, 0);
     if (hit) hit[1](path.match(hit[0])); else notFound();
     NAV.forEach(s => { if (s.items.some(i => i.href && isActive(i.href))) state.open[s.id] = true; });
+    if (/^\/org\//.test(state.path)) state.open.org = true;
     renderNav();
     renderFoot();
     app.classList.remove('drawer');
@@ -1387,6 +1413,61 @@
     if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !dlg.open && !pal.open) { e.preventDefault(); openPalette(); }
   });
 
+  const csClose = () => $$('.cs.open').forEach(c => c.classList.remove('open'));
+
+  function enhance() {
+    $$('select:not([data-cs])').forEach(sel => {
+      sel.dataset.cs = '1';
+      sel.classList.add('cs-native');
+      const w = document.createElement('div');
+      w.className = 'cs' + (sel.classList.contains('sm') ? ' sm' : '');
+      w.innerHTML = `<button type="button" class="cs-btn"><span></span>${icon('chevron')}</button><div class="cs-menu"></div>`;
+      sel.after(w);
+      const txt = () => { w.querySelector('span').textContent = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : ''; };
+      txt();
+      sel.addEventListener('change', txt);
+      w.addEventListener('click', e => {
+        const b = e.target.closest('.cs-btn');
+        const o = e.target.closest('.cs-opt');
+        if (b) {
+          const was = w.classList.contains('open');
+          csClose();
+          if (was) return;
+          const m = w.querySelector('.cs-menu');
+          m.innerHTML = [...sel.options].map((x, i) => `<button type="button" class="cs-opt${i === sel.selectedIndex ? ' on' : ''}" data-i="${i}">${esc(x.text)}</button>`).join('');
+          const r = b.getBoundingClientRect();
+          const below = innerHeight - r.bottom > 220;
+          m.style.minWidth = r.width + 'px';
+          m.style.left = Math.max(8, Math.min(r.left, innerWidth - r.width - 12)) + 'px';
+          m.style.top = below ? r.bottom + 6 + 'px' : 'auto';
+          m.style.bottom = below ? 'auto' : innerHeight - r.top + 6 + 'px';
+          w.classList.add('open');
+        } else if (o) {
+          sel.selectedIndex = +o.dataset.i;
+          sel.dispatchEvent(new Event('input', { bubbles: true }));
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+          csClose();
+        }
+      });
+    });
+    $$('.tabbed:not([data-init])').forEach(w => {
+      w.dataset.init = '1';
+      const tab = w.querySelector(`[data-tab="${sessionStorage.getItem('rev.tab.' + state.path)}"]`) || w.querySelector('[data-tab]');
+      if (tab) tab.click();
+    });
+  }
+  new MutationObserver(() => requestAnimationFrame(enhance)).observe(document.body, { childList: true, subtree: true });
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.cs')) csClose();
+    const b = e.target.closest('[data-tab]');
+    if (!b) return;
+    const w = b.closest('.tabbed');
+    w.querySelectorAll('[data-tab]').forEach(x => x.classList.toggle('on', x === b));
+    w.querySelectorAll('[data-panel]').forEach(p => { p.hidden = p.dataset.panel !== b.dataset.tab; });
+    sessionStorage.setItem('rev.tab.' + state.path, b.dataset.tab);
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') csClose(); });
+
   window.REV = { store, skey, myDocs, saveMyDocs, createDoc, $, esc, icon, view, state, toast, copy, openDialog, dlg, ask, setCrumbs, notFound, fmtDate, uid, sanitize, rich, route, get sb() { return sb; } };
 
   const select = $('#serverSelect');
@@ -1401,6 +1482,8 @@
   $('#menuBtn').innerHTML = icon('menu');
   $('#searchIcon').innerHTML = icon('search');
 
+  const pm = location.pathname.match(/^\/(f|o)\/([\w-]+)\/?$/);
+  if (pm) history.replaceState(null, '', '/#/' + (pm[1] === 'o' ? 'v' : 'f') + '/' + pm[2]);
   window.addEventListener('hashchange', route);
   bootstrap().then(() => {
     hydrate();

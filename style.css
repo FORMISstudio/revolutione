@@ -624,3 +624,84 @@ label.btn { cursor: pointer; }
 .pform .card h2 { display: flex; align-items: center; font-size: 17px; }
 .tnum2 { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--raised); border: 1px solid var(--line-2); font-size: 12px; margin-right: 10px; flex: none; }
 .ans-img { max-width: 100%; max-height: 260px; border-radius: 8px; margin-top: 6px; }
+
+/* polish v13 */
+[hidden] { display: none !important; }
+body { user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+input, textarea, [contenteditable], .art, .art *, .note-body, .note-body *, .lpage .lc, .lpage .lc *, .sec-t, .ans-img, .pform h1, .pform p, .result p, .page-head p { user-select: text; -webkit-user-select: text; }
+.main { animation: none; background-position: 50% 0; }
+.view > * { animation-duration: 0.26s; }
+.row, .trow, .result, .note, .tpl, .art, .card, .gcard, .tsec { animation-duration: 0.22s; }
+.list .row:nth-child(n), .table .trow:nth-child(n) { animation-delay: 0s; }
+.list .row:nth-child(2), .table .trow:nth-child(2) { animation-delay: 0.02s; }
+.list .row:nth-child(3), .table .trow:nth-child(3) { animation-delay: 0.04s; }
+.list .row:nth-child(4), .table .trow:nth-child(4) { animation-delay: 0.06s; }
+.node { animation-duration: 0.28s; }
+.sec-items { transition-duration: 0.18s; }
+.btn, .chip, .icon-btn, .item, .sec-btn { transition-duration: 0.12s; }
+dialog[open] { animation: dlgin 0.18s ease-out; }
+dialog[open]::backdrop { animation: fadein 0.18s ease-out; }
+@keyframes dlgin { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
+@keyframes fadein { from { opacity: 0; } }
+[data-panel]:not([hidden]) { animation: rise 0.2s both; }
+
+.card, .list, .table, .note, .empty, .notice, .gcard, .tpl { border-radius: 12px; }
+.btn, .input, .field input, .field textarea, .tsec input, .rt, .sgn input, .cs-btn, .cmp { border-radius: 10px; }
+.field input[type="checkbox"] { width: 18px; padding: 0; }
+input[type="checkbox"] { appearance: none; -webkit-appearance: none; width: 18px; height: 18px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--bg); display: inline-grid; place-items: center; cursor: pointer; transition: background 0.12s, border-color 0.12s; flex: none; margin: 0; }
+input[type="checkbox"]:hover { border-color: #666; }
+input[type="checkbox"]:checked { background: var(--accent); border-color: var(--accent); }
+input[type="checkbox"]:checked::after { content: ""; width: 9px; height: 5px; border-left: 2px solid var(--accent-ink); border-bottom: 2px solid var(--accent-ink); transform: rotate(-45deg) translate(1px, -1px); }
+input[type="color"] { padding: 3px; height: 40px; cursor: pointer; }
+input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
+* { scrollbar-width: thin; scrollbar-color: #2a2a2a transparent; }
+
+.cs-native { display: none !important; }
+.cs { position: relative; display: inline-block; min-width: 140px; }
+.field .cs, .trow .cs, .sgn .cs { display: block; width: 100%; }
+.cs-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 38px; padding: 0 12px; background: var(--bg); border: 1px solid var(--line-2); font-size: 14px; text-align: left; transition: border-color 0.12s, box-shadow 0.12s; }
+.cs-btn:hover { border-color: #555; }
+.cs-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-btn .i { width: 14px; height: 14px; transform: rotate(90deg); color: var(--dim); transition: transform 0.15s; }
+.cs.open .cs-btn { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.cs.open .cs-btn .i { transform: rotate(-90deg); }
+.cs.sm .cs-btn { height: 32px; font-size: 13px; }
+.cs-menu { position: fixed; z-index: 300; display: none; flex-direction: column; gap: 2px; padding: 6px; background: #0e0e0f; border: 1px solid var(--line-2); border-radius: 12px; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.7); max-height: 260px; overflow: auto; }
+.cs.open .cs-menu { display: flex; animation: popin 0.12s ease-out; }
+@keyframes popin { from { opacity: 0; transform: translateY(-4px); } }
+.cs-opt { text-align: left; background: none; border: 0; padding: 9px 12px; border-radius: 8px; color: var(--muted); font-size: 14px; transition: background 0.1s, color 0.1s; }
+.cs-opt:hover { background: var(--raised); color: var(--text); }
+.cs-opt.on { color: var(--text); background: var(--raised); box-shadow: inset 2px 0 var(--accent); }
+
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 20px; overflow-x: auto; white-space: nowrap; }
+.tabs .tab { background: none; border: 0; padding: 10px 14px; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; font-weight: 500; font-size: 14px; transition: color 0.12s, border-color 0.12s; }
+.tabs .tab:hover { color: var(--text); }
+.tabs .tab.on { color: var(--text); border-bottom-color: var(--accent); }
+.set.tabbed { max-width: 680px; }
+
+.rtb button { display: inline-grid; place-items: center; width: 34px; height: 32px; padding: 0; }
+.rtb button .i { width: 16px; height: 16px; }
+.bar-btn { padding: 0; }
+.bar-btn .i { width: 19px; height: 19px; }
+.bar-btn.primary { background: var(--accent); color: var(--accent-ink); }
+.bar-group.wrap { flex-wrap: nowrap; border-radius: 999px; }
+
+@media (max-width: 900px) {
+  .ted-bar { order: 0; } .ted-c { order: 1; min-height: 50vh; } .ted-l { order: 2; } .ted-r { order: 3; }
+}
+@media (max-width: 700px) {
+  .page-head { gap: 14px; margin-bottom: 20px; }
+  .page-head .actions { width: 100%; }
+  .page-head .actions .btn { flex: 1; }
+  .grid2, .grid3 { grid-template-columns: 1fr; }
+  .btn, .input, .field input, .field textarea { min-height: 42px; }
+  .cs-btn { height: 42px; }
+  dialog { width: calc(100vw - 20px); }
+  .dlg-body { padding: 18px; }
+  .card { padding: 16px; }
+  .docgrid { gap: 18px; }
+  .board-bar { bottom: 12px; }
+  .row { padding: 12px 14px; }
+  .toolbar .input { max-width: none; }
+}

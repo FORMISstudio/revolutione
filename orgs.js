@@ -3,11 +3,12 @@
   const { $, esc, icon, toast } = R;
   const sb = () => R.sb;
   const HOOK = /^https:\/\/(discord|discordapp)\.com\/api\/webhooks\//;
-  const CMDS = [['bold', 'B'], ['italic', 'I'], ['underline', 'U'], ['insertUnorderedList', '•'], ['insertOrderedList', '1.'], ['justifyLeft', '⇤'], ['justifyCenter', '↔'], ['justifyRight', '⇥']];
-  const STAMP = '<img class="stamp" src="stamp.png" alt="">';
+  const CMDS = [['bold', icon('bold')], ['italic', icon('italic')], ['underline', icon('underline')], ['insertUnorderedList', icon('ul')], ['insertOrderedList', icon('ol')], ['justifyLeft', icon('alignL')], ['justifyCenter', icon('alignC')], ['justifyRight', icon('alignR')]];
+  const STAMP = '<img class="stamp" src="/stamp.png" alt="">';
   let D = null;
   let edit = false;
   let redraw = () => {};
+  let offBoard = null;
 
   const toText = h => {
     const t = document.createElement('template');
@@ -38,9 +39,9 @@
     edit = !!arg.id && D.org.admin;
     R.setCrumbs([['Организации', '#/orgs'], [D.org.name]]);
     R.view.classList.add('wide');
-    const link = `${location.origin}${location.pathname}#/v/${D.org.slug || D.org.token}`;
+    const link = `${location.origin}/o/${D.org.slug || D.org.token}`;
     const bar = edit
-      ? `<button class="btn" data-o="addNote">+ Заметка</button><button class="btn" data-o="addDoc">+ Документ</button><button class="btn" data-o="addGroup">+ Группа</button><button class="btn" id="connBtn" data-o="connect">Соединить</button><a class="btn" href="#/org/${D.org.id}/templates">Шаблоны</a><a class="btn" href="#/org/${D.org.id}/settings">Настройки</a><a class="btn" href="#/org/${D.org.id}/forms">Формы</a><a class="btn" href="#/org/${D.org.id}/audit">Журнал</a><button class="btn primary" data-o="copyLink" data-link="${esc(link)}">Ссылка для зрителей</button>`
+      ? `<button class="bar-btn" data-o="addDoc" title="Документ" aria-label="Добавить документ">${icon('file')}</button><button class="bar-btn" data-o="addNote" title="Заметка" aria-label="Добавить заметку">${icon('note')}</button><button class="bar-btn" data-o="addGroup" title="Группа" aria-label="Добавить группу">${icon('folder')}</button><button class="bar-btn" id="connBtn" data-o="connect" title="Соединить" aria-label="Соединить карточки">${icon('link')}</button><button class="bar-btn" data-o="copyLink" data-link="${esc(link)}" title="Ссылка для зрителей" aria-label="Копировать ссылку для зрителей">${icon('copy')}</button>`
       : `<span class="bar-note">${esc(D.org.name)}: нажмите на документ, чтобы заполнить</span>${D.org.admin ? `<a class="btn" href="#/org/${D.org.id}">Управлять</a>` : ''}`;
     R.view.innerHTML = `<div class="board" id="board"><div class="board-inner" id="boardInner"></div><div class="board-bar"><div class="bar-group wrap">${bar}</div></div></div>`;
     const box = $('#board');
@@ -95,8 +96,10 @@
       dn = null;
       drag = null;
     };
+    if (offBoard) offBoard();
     window.addEventListener('pointermove', mv);
     window.addEventListener('pointerup', up);
+    offBoard = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
     box.addEventListener('wheel', e => { e.preventDefault(); v.k = Math.min(2, Math.max(0.4, v.k * (e.deltaY < 0 ? 1.1 : 0.9))); apply(); }, { passive: false });
     box.addEventListener('click', async e => {
       if (e.target.closest('.board-bar') || moved > 4) return;
@@ -182,22 +185,22 @@
     const b = D.org.brand || {};
     const br = { ...b };
     const upw = (lbl, k) => `<div class="field"><span>${lbl}</span><div class="up"><div class="up-prev">${br[k] ? `<img src="${esc(br[k])}" alt="">` : '<span>Нет</span>'}</div><div class="actions"><label class="btn">Загрузить<input type="file" accept="image/*" data-bup="${k}" hidden></label>${br[k] ? `<button class="btn" data-o="bClear" data-k="${k}">Убрать</button>` : ''}</div></div></div>`;
-    const link = `${location.origin}${location.pathname}#/v/${D.org.slug || D.org.token}`;
-    R.view.innerHTML = `<section class="page-head"><div><h1>Настройки</h1><p>Адрес, оформление документов, состав и каналы публикации.</p></div><div class="actions"><a class="btn" href="#/org/${id}">К доске</a></div></section><div class="set">
-      <section class="card"><h2>Основное</h2>
+    const link = `${location.origin}/o/${D.org.slug || D.org.token}`;
+    R.view.innerHTML = `<section class="page-head"><div><h1>Настройки</h1><p>Адрес, оформление документов, состав и каналы публикации.</p></div><div class="actions"><a class="btn" href="#/org/${id}">К доске</a></div></section><div class="set tabbed"><div class="tabs"><button class="tab on" data-tab="main">Основное</button><button class="tab" data-tab="brand">Оформление</button><button class="tab" data-tab="members">Состав</button><button class="tab" data-tab="hooks">Каналы</button></div>
+      <section class="card" data-panel="main"><h2>Основное</h2>
         <label class="field"><span>Название</span><input id="sName" value="${esc(D.org.name)}"></label>
         <label class="field"><span>Адрес (латиница, цифры, дефис)</span><input id="sSlug" value="${esc(D.org.slug || '')}" placeholder="my-org"></label>
         <p class="hint">Ссылка для состава: ${esc(link)}</p>
         <div class="actions"><button class="btn primary" data-o="saveMain">Сохранить</button><button class="btn" data-o="copyLink" data-link="${esc(link)}">Копировать ссылку</button><button class="btn danger" data-o="delOrg">Удалить организацию</button></div></section>
-      <section class="card"><h2>Оформление листа</h2>
+      <section class="card" data-panel="brand" hidden><h2>Оформление листа</h2>
         <label class="field"><span>Цвет</span><input id="bColor" type="color" value="${esc(b.color || '#b4f23c')}"></label>
         <label class="field"><span>Строка в шапке</span><input id="bTitle" value="${esc(b.title || '')}" placeholder="Информационный документ"></label>
         ${upw('Логотип', 'logo')}${upw('Штамп (по умолчанию stamp.png)', 'stamp')}
         <div class="actions"><button class="btn primary" data-o="saveBrand">Сохранить</button></div></section>
-      <section class="card"><h2>Состав</h2><p class="hint">Участники состава могут публиковать документы в Discord. Человек должен хотя бы раз войти на сайт.</p>
+      <section class="card" data-panel="members" hidden><h2>Состав</h2><p class="hint">Участники состава могут публиковать документы в Discord. Человек должен хотя бы раз войти на сайт.</p>
         ${(m.data || []).map(x => `<div class="row"><span class="row-title">${esc(x.name || 'Без имени')}</span><span class="row-meta">${x.role === 'admin' ? 'Лидер' : 'Состав'}</span>${x.role === 'admin' ? '' : `<button class="icon-btn danger" data-o="delMember" data-id="${x.user_id}" aria-label="Убрать">${icon('trash')}</button>`}</div>`).join('')}
         <div class="actions"><input class="input" id="mName" placeholder="Ник в Discord" style="max-width:240px"><button class="btn" data-o="addMember">Добавить</button></div></section>
-      <section class="card"><h2>Каналы публикации</h2><p class="hint">Вебхук и текст сообщения. Пинг роли пишется как &lt;@&amp;ID_РОЛИ&gt;. Затем отметьте канал на нужных документах на доске.</p>
+      <section class="card" data-panel="hooks" hidden><h2>Каналы публикации</h2><p class="hint">Вебхук и текст сообщения. Пинг роли пишется как &lt;@&amp;ID_РОЛИ&gt;. Затем отметьте канал на нужных документах на доске.</p>
         ${(h.data || []).map(w => `<div class="row"><span class="row-title">${esc(w.name)}</span><span class="row-meta">${esc((w.message || '').slice(0, 30))}</span><button class="icon-btn danger" data-o="delHook" data-id="${w.id}" aria-label="Удалить">${icon('trash')}</button></div>`).join('')}
         <label class="field"><span>Название</span><input id="wName" placeholder="Контрактация"></label>
         <label class="field"><span>URL вебхука</span><input id="wUrl" placeholder="https://discord.com/api/webhooks/..."></label>
@@ -280,12 +283,13 @@
   const bl = (name, children) => ({ id: R.uid(), type: 'block', name, dir: 'column', align: 'center', gap: 6, pad: 0, children });
   const ln = o => ({ id: R.uid(), type: 'line', thick: 2, w: 100, color: '', ...o });
 
+  const orgT = (size, weight, o = {}) => (D.org.personal ? [] : [tx('{{org}}', { size, weight, ...o })]);
   const preset = k => {
     const logo = { id: R.uid(), type: 'image', url: ((D && D.org && D.org.brand) || {}).logo || '', w: 110 };
     const content = { id: R.uid(), type: 'content', size: 14, align: 'left' };
     const sg = { id: R.uid(), type: 'signers' };
-    if (k === 'dark') return { page: { bg: '#0a0a0b', color: '#ffffff', pad: 36 }, blocks: [bl('Шапка', [logo, tx('{{org}}', { size: 22, weight: 600 }), tx('{{title}}', { size: 13, weight: 600, upper: true }), tx('№ {{code}}', { size: 11, color: '#888888' })]), ln({ thick: 1, color: '#333333' }), content, sg] };
-    if (k === 'light') return { page: { bg: '#ffffff', color: '#111111', pad: 36 }, blocks: [bl('Шапка', [logo, tx('{{org}}', { size: 18, weight: 600, upper: true }), tx('{{title}}', { size: 13, weight: 500 }), tx('№ {{code}} от {{date}}', { size: 11, color: '#666666' })]), ln({ thick: 2, color: '#111111' }), content, ln({ thick: 1, color: '#cccccc' }), sg] };
+    if (k === 'dark') return { page: { bg: '#0a0a0b', color: '#ffffff', pad: 36 }, blocks: [bl('Шапка', [logo, ...orgT(22, 600), tx('{{title}}', { size: 13, weight: 600, upper: true }), tx('№ {{code}}', { size: 11, color: '#888888' })]), ln({ thick: 1, color: '#333333' }), content, sg] };
+    if (k === 'light') return { page: { bg: '#ffffff', color: '#111111', pad: 36 }, blocks: [bl('Шапка', [logo, ...orgT(18, 600, { upper: true }), tx('{{title}}', { size: 13, weight: 500 }), tx('№ {{code}} от {{date}}', { size: 11, color: '#666666' })]), ln({ thick: 2, color: '#111111' }), content, ln({ thick: 1, color: '#cccccc' }), sg] };
     return { page: { bg: '#ffffff', color: '#111111', pad: 36 }, blocks: [tx('{{title}}', { size: 20, weight: 600, align: 'left' }), content, sg] };
   };
   const layoutOf = t => t.layout || preset('dark');
@@ -304,7 +308,7 @@
     if (b.type === 'line') return `<div class="ll${cls}" ${a}><i style="height:${+b.thick || 1}px;width:${+b.w || 100}%;background:${esc(b.color || 'currentColor')}"></i></div>`;
     if (b.type === 'image') return b.url ? `<img class="li${cls}" ${a} src="${esc(b.url)}" crossorigin="anonymous" alt="" style="width:${+b.w || 120}px">` : (c.edit ? `<div class="ph${cls}" ${a}>Изображение</div>` : '');
     if (b.type === 'content') return `<div class="lc${cls}" ${a} style="font-size:${+b.size || 14}px;text-align:${b.align || 'left'}">${c.content || (c.edit ? '<span class="ph">Содержимое документа</span>' : '')}</div>`;
-    return `<div class="ls${cls}" ${a}><img class="stamp" src="${esc((D.org.brand || {}).stamp || 'stamp.png')}" alt=""><div class="signs">${c.signers.filter(x => x.name).map(x => `<div class="sign"><span>${esc(x.pos)}${x.pos ? ', ' : ''}${esc(x.name)}</span><i>${esc(x.name)}</i></div>`).join('')}</div></div>`;
+    return `<div class="ls${cls}" ${a}><img class="stamp" src="${esc((D.org.brand || {}).stamp || '/stamp.png')}" alt=""><div class="signs">${c.signers.filter(x => x.name).map(x => `<div class="sign"><span>${esc(x.pos)}${x.pos ? ', ' : ''}${esc(x.name)}</span><i>${esc(x.name)}</i></div>`).join('')}</div></div>`;
   }
   const pageHtml = (L, c, sel) => `<div class="lpage${c.edit ? ' edit' : ''}" style="background:${esc(L.page.bg)};color:${esc(L.page.color)};padding:${+L.page.pad || 0}px;--brand:${esc((D.org.brand || {}).color || '#b4f23c')}">${L.blocks.map(b => rb(b, c, sel)).join('')}</div>`;
 
@@ -447,7 +451,7 @@
       ${!arg.local && !D.org.member ? '<small class="muted">Публиковать в Discord могут только участники состава</small>' : ''}
     </div><div class="docprev"><div id="dPage"></div></div></div></div>`;
     const paint = () => { $('#dPage').innerHTML = pageHtml(tpl() ? layoutOf(tpl()) : preset('dark'), ctx()); if (adm) $('#dTplBtn').textContent = 'Шаблон: ' + (tpl() ? tpl().title : 'не выбран'); };
-    const thread = () => { $('#dThread').innerHTML = st.sections.map((s, i) => `<div class="tsec"><span class="tnum">${i + 1}</span><input data-si="${i}" data-sf="t" value="${esc(s.t)}" placeholder="Без заголовка"><div class="rtb">${CMDS.map(([c, l]) => `<button type="button" data-cmd="${c}">${l}</button>`).join('')}<button type="button" data-mark="1">Маркер</button></div><div class="rt" contenteditable="true" data-si="${i}" data-sf="x" data-ph="Текст секции">${R.rich(s.x)}</div><button type="button" class="link-btn" data-o="delSec2" data-i="${i}">Убрать</button></div>`).join(''); };
+    const thread = () => { $('#dThread').innerHTML = st.sections.map((s, i) => `<div class="tsec"><span class="tnum">${i + 1}</span><input data-si="${i}" data-sf="t" value="${esc(s.t)}" placeholder="Без заголовка"><div class="rtb">${CMDS.map(([c, l]) => `<button type="button" data-cmd="${c}">${l}</button>`).join('')}<button type="button" data-mark="1" title="Маркер" aria-label="Маркер">${icon('marker')}</button></div><div class="rt" contenteditable="true" data-si="${i}" data-sf="x" data-ph="Текст секции">${R.rich(s.x)}</div><button type="button" class="link-btn" data-o="delSec2" data-i="${i}">Убрать</button></div>`).join(''); };
     const signs = () => { $('#dSign').innerHTML = st.signers.map((x, i) => `<div class="sgn"><input data-sg="${i}" data-sf2="name" placeholder="Имя" value="${esc(x.name)}"><input data-sg="${i}" data-sf2="pos" placeholder="Должность" value="${esc(x.pos)}"></div>`).join(''); };
     const save = deb(async () => {
       const el = $('#dState');
@@ -506,7 +510,7 @@
   }
 
   const audit = (action, detail = '') => sb().from('org_audit').insert({ org_id: D.org.id, user_id: R.state.user.id, user_name: R.state.name || '', action, detail: String(detail).slice(0, 300) }).then(() => {});
-  const formLink = f => `${location.origin}${location.pathname}#/f/${f.slug}`;
+  const formLink = f => `${location.origin}/f/${f.slug}`;
   const QT = { text: 'Короткий ответ', long: 'Длинный ответ', file: 'Картинка' };
 
   async function forms(id) {
@@ -533,11 +537,11 @@
     R.setCrumbs([['Организации', '#/orgs'], [D.org.name, '#/org/' + id], ['Формы', `#/org/${id}/forms`], [f.title]]);
     R.view.classList.remove('wide');
     const list = ans.data || [];
-    R.view.innerHTML = `<section class="page-head"><div class="grow"><input class="title-input" data-f="title" value="${esc(f.title)}"><p class="save-state" id="fState">Сохранено</p></div><div class="actions"><button class="btn" data-o="fCopyLink">Копировать ссылку</button><button class="btn danger" data-o="fDel">Удалить</button></div></section><div class="set">
-      <section class="card"><label class="field"><span>Описание</span><textarea data-f="description" rows="2">${esc(f.description)}</textarea></label><label class="chk"><input type="checkbox" data-f="open" ${f.open ? 'checked' : ''}> Форма принимает ответы</label></section>
-      <section class="card"><h2>Вопросы</h2><div class="thread" id="qList"></div><button class="btn" data-o="addQ">${icon('plus')}Добавить вопрос</button></section>
-      <section class="card"><h2>Отправка в Discord</h2><label class="field"><span>Канал</span><select data-f="webhook_id"><option value="">Не отправлять</option>${(hooks.data || []).map(w => `<option value="${w.id}" ${w.id === f.webhook_id ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select></label><label class="field"><span>Текст сообщения</span><textarea data-f="message" rows="2" placeholder="&lt;@&amp;ID_РОЛИ&gt; новая заявка">${esc(f.message)}</textarea></label></section>
-      <section class="card"><h2>Ответы: ${list.length}</h2>${list.map(x => `<details class="note"><summary><b>${esc(x.user_name || 'Без имени')}</b><span class="tags">${R.fmtDate(x.created_at)}</span></summary><div class="note-body">${f.questions.map(q => `<p><b>${esc(q.t)}</b><br>${q.type === 'file' && x.data[q.id] ? `<img class="ans-img" src="${esc(x.data[q.id])}" alt="">` : esc(x.data[q.id] || '—')}</p>`).join('')}</div></details>`).join('') || '<p class="hint">Пока нет ответов</p>'}</section></div>`;
+    R.view.innerHTML = `<section class="page-head"><div class="grow"><input class="title-input" data-f="title" value="${esc(f.title)}"><p class="save-state" id="fState">Сохранено</p></div><div class="actions"><button class="btn" data-o="fCopyLink">Копировать ссылку</button><button class="btn danger" data-o="fDel">Удалить</button></div></section><div class="set tabbed"><div class="tabs"><button class="tab on" data-tab="q">Вопросы</button><button class="tab" data-tab="ans">Ответы (${list.length})</button><button class="tab" data-tab="set">Настройки</button></div>
+      <section class="card" data-panel="set" hidden><label class="field"><span>Описание</span><textarea data-f="description" rows="2">${esc(f.description)}</textarea></label><label class="chk"><input type="checkbox" data-f="open" ${f.open ? 'checked' : ''}> Форма принимает ответы</label></section>
+      <section class="card" data-panel="q"><h2>Вопросы</h2><div class="thread" id="qList"></div><button class="btn" data-o="addQ">${icon('plus')}Добавить вопрос</button></section>
+      <section class="card" data-panel="set" hidden><h2>Отправка в Discord</h2><label class="field"><span>Канал</span><select data-f="webhook_id"><option value="">Не отправлять</option>${(hooks.data || []).map(w => `<option value="${w.id}" ${w.id === f.webhook_id ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select></label><label class="field"><span>Текст сообщения</span><textarea data-f="message" rows="2" placeholder="&lt;@&amp;ID_РОЛИ&gt; новая заявка">${esc(f.message)}</textarea></label></section>
+      <section class="card" data-panel="ans" hidden><h2>Ответы: ${list.length}</h2>${list.map(x => `<details class="note"><summary><b>${esc(x.user_name || 'Без имени')}</b><span class="tags">${R.fmtDate(x.created_at)}</span></summary><div class="note-body">${f.questions.map(q => `<p><b>${esc(q.t)}</b><br>${q.type === 'file' && x.data[q.id] ? `<img class="ans-img" src="${esc(x.data[q.id])}" alt="">` : esc(x.data[q.id] || '—')}</p>`).join('')}</div></details>`).join('') || '<p class="hint">Пока нет ответов</p>'}</section></div>`;
     const qs = () => { $('#qList').innerHTML = f.questions.map((q, i) => `<div class="tsec"><span class="tnum">${i + 1}</span><input data-qi="${i}" data-qf="t" value="${esc(q.t)}" placeholder="Вопрос"><select data-qi="${i}" data-qf="type">${Object.entries(QT).map(([k, v]) => `<option value="${k}" ${q.type === k ? 'selected' : ''}>${v}</option>`).join('')}</select><label class="chk"><input type="checkbox" data-qi="${i}" data-qf="req" ${q.req ? 'checked' : ''}> Обязательный</label><button type="button" class="link-btn" data-o="delQ" data-i="${i}">Убрать</button></div>`).join(''); };
     const save = deb(async () => {
       $('#fState').textContent = 'Сохранение';
@@ -605,7 +609,7 @@
 
   const SL = { draft: 'Черновик', review: 'На подписи', signed: 'Подписан', rejected: 'Отклонён' };
   const localD = () => {
-    D = { org: { name: R.store.get('profile', {}).org || 'revolutione', brand: {}, member: false, token: '', admin: true }, templates: [], webhooks: [], nodes: [], edges: [] };
+    D = { org: { name: '', personal: true, brand: {}, member: false, token: '', admin: true }, templates: [], webhooks: [], nodes: [], edges: [] };
     D.templates = ['dark:Тёмный', 'light:Светлый', 'plain:Простой'].map(x => { const [k, nm] = x.split(':'); return { id: 'p:' + k, title: nm, code: 'DOC', layout: preset(k) }; }).concat(R.store.get(R.skey('ltpl'), []));
     return D;
   };
