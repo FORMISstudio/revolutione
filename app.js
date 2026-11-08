@@ -175,9 +175,7 @@
     marker: '<path d="M9 11l4 4M4 20l4-1 11-11a2.1 2.1 0 0 0-3-3L5 16z"/>',
     folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
     link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
-    note: '<path d="M5 4h14v12l-5 5H5z"/><path d="M14 21v-5h5M8 9h8M8 13h4"/>',
-    fit: '<path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/>',
-    minus: '<path d="M5 12h14"/>'
+    note: '<path d="M5 4h14v12l-5 5H5z"/><path d="M14 21v-5h5M8 9h8M8 13h4"/>'
   };
 
   const NAV = [
@@ -538,7 +536,7 @@
       const m = (x1 + q.x) / 2;
       return `<path d="M${x1} ${y1}C${m} ${y1} ${m} ${q.y + 20} ${q.x} ${q.y + 20}"/>`;
     };
-    view.innerHTML = `<div class="board" id="board"><div class="board-inner" id="boardInner"><svg class="threads" width="1000" height="${y + 80}">${edges.map(link).join('')}</svg>${nodes.map((n, i) => `<button class="node ${n.k}" style="left:${n.x}px;top:${n.y}px;animation-delay:${i * 45}ms" data-id="${n.id}"><small>${esc(n.tag)}</small>${esc(n.l)}</button>`).join('')}</div><div class="board-bar"><div class="bar-group"><button class="bar-btn" data-z="fit" aria-label="По центру">${icon('fit')}</button><button class="bar-btn" data-z="in" aria-label="Приблизить">${icon('plus')}</button><button class="bar-btn" data-z="out" aria-label="Отдалить">${icon('minus')}</button></div><div class="bar-group"><a class="bar-btn" href="#/paperwork/new" aria-label="Новый документ">${icon('file')}</a></div></div></div>`;
+    view.innerHTML = `<div class="board" id="board"><div class="board-inner" id="boardInner"><svg class="threads" width="1000" height="${y + 80}">${edges.map(link).join('')}</svg>${nodes.map((n, i) => `<button class="node ${n.k}" style="left:${n.x}px;top:${n.y}px;animation-delay:${i * 45}ms" data-id="${n.id}"><small>${esc(n.tag)}</small>${esc(n.l)}</button>`).join('')}</div><div class="board-bar"><div class="bar-group"><button class="bar-btn" data-z="fit" aria-label="По центру">${icon('search')}</button><button class="bar-btn" data-z="in" aria-label="Приблизить">${icon('plus')}</button><button class="bar-btn" data-z="out" aria-label="Отдалить">−</button></div><div class="bar-group"><a class="bar-btn" href="#/paperwork/new" aria-label="Новый документ">${icon('file')}</a></div></div></div>`;
     const box = $('#board');
     const inner = $('#boardInner');
     const v = { x: 40, y: 60, k: innerWidth < 700 ? 0.7 : 1 };
@@ -586,7 +584,7 @@
       const n = e.target.closest('.node');
       if (!n || moved > 4) return;
       const node = byId[n.dataset.id];
-      if (node.tpl) createDoc(node.tpl); else if (node.href) go(node.href);
+      if (node.tpl) createDoc(node.tpl); else if (node.href) location.hash = node.href;
     });
   }
 
@@ -735,7 +733,7 @@
   function createDoc(tplId) {
     const doc = { id: uid(), tpl: tplId, title: `Документ от ${today()}`, code: '', status: 'draft', sections: [{ t: '', x: '' }], created: Date.now(), updated: Date.now() };
     saveMyDocs([...myDocs(), doc]);
-    go('#/paperwork/edit/' + doc.id);
+    location.hash = '#/paperwork/edit/' + doc.id;
   }
 
   const ALLOW = ['B', 'STRONG', 'I', 'EM', 'U', 'UL', 'OL', 'LI', 'BR', 'DIV', 'P', 'MARK', 'S'];
@@ -957,7 +955,7 @@
         saveNotes(list);
         dlg.close();
         if (state.path === '/handbook') route();
-        else go('#/handbook');
+        else location.hash = '#/handbook';
       });
     });
   }
@@ -976,7 +974,7 @@
         const doc = { id: uid(), title: v.title.trim(), group: v.group, url: v.url.trim() };
         saveDocs([...docs(), doc]);
         dlg.close();
-        go('#/legal/doc/' + doc.id);
+        location.hash = '#/legal/doc/' + doc.id;
         toast('Документ добавлен');
       });
     });
@@ -1020,23 +1018,14 @@
   const firstLine = t => (String(t).split('\n').find(l => l.trim()) || '').trim().slice(0, 90);
 
   async function pullLaws() {
-    const { data: meta } = await sb.from('laws').select('id,server,title,grp,url,updated_at');
-    const rows = meta || [];
-    const cache = JSON.parse(localStorage.getItem('rev.__lawc') || '{}');
-    const keep = new Set(rows.map(r => `rev.${r.server}.art.${r.id}`));
-    Object.keys(localStorage).filter(k => /^rev\..+\.(docs|art\..+)$/.test(k) && !keep.has(k)).forEach(k => localStorage.removeItem(k));
-    const need = rows.filter(r => cache[r.id] !== r.updated_at || localStorage.getItem(`rev.${r.server}.art.${r.id}`) === null);
-    for (let i = 0; i < need.length; i += 8) {
-      const { data } = await sb.from('laws').select('id,items').in('id', need.slice(i, i + 8).map(r => r.id));
-      (data || []).forEach(x => {
-        const r = rows.find(y => y.id === x.id);
-        localStorage.setItem(`rev.${r.server}.art.${r.id}`, JSON.stringify({ items: x.items, src: r.url, at: Date.parse(r.updated_at) }));
-      });
-    }
+    const { data } = await sb.from('laws').select('*');
+    Object.keys(localStorage).filter(k => /^rev\..+\.(docs|art\..+)$/.test(k)).forEach(k => localStorage.removeItem(k));
     const by = {};
-    rows.forEach(r => (by[r.server] = by[r.server] || []).push(r));
-    Object.entries(by).forEach(([srv, rs]) => localStorage.setItem(`rev.${srv}.docs`, JSON.stringify(rs.map(r => ({ id: r.id, title: r.title, group: r.grp, url: r.url })))));
-    localStorage.setItem('rev.__lawc', JSON.stringify(Object.fromEntries(rows.map(r => [r.id, r.updated_at]))));
+    (data || []).forEach(r => (by[r.server] = by[r.server] || []).push(r));
+    Object.entries(by).forEach(([srv, rows]) => {
+      localStorage.setItem(`rev.${srv}.docs`, JSON.stringify(rows.map(r => ({ id: r.id, title: r.title, group: r.grp, url: r.url }))));
+      rows.forEach(r => localStorage.setItem(`rev.${srv}.art.${r.id}`, JSON.stringify({ items: r.items, src: r.url, at: Date.parse(r.updated_at) })));
+    });
   }
 
   async function pullStore() { await pullLaws(); }
@@ -1055,20 +1044,20 @@
     if (se) state.authError = se.message;
     state.user = session ? session.user : null;
     const nx = sessionStorage.getItem('rev.next');
-    if (state.user && nx) { sessionStorage.removeItem('rev.next'); history.replaceState(null, '', nx); }
+    if (state.user && nx) { sessionStorage.removeItem('rev.next'); history.replaceState(null, '', location.pathname + location.search + nx); }
     sb.auth.onAuthStateChange((ev, s) => { if ((s ? s.user.id : null) !== (state.user ? state.user.id : null)) location.reload(); });
     if (!state.user) return;
-    const [pr, , kvr] = await Promise.all([sb.from('profiles').select('role,name,avatar').eq('id', state.user.id).single(), pullLaws(), sb.from('kv').select('key,value')]);
-    const p = pr.data;
-    const kv = kvr.data;
+    const { data: p } = await sb.from('profiles').select('role,name,avatar').eq('id', state.user.id).single();
     if (!p) toast('Профиль не создан: проверьте триггер в schema.sql');
     state.role = (p && p.role) || 'user';
     state.name = (p && p.name) || '';
     state.avatar = (p && p.avatar) || '';
-    store.keys().filter(k => !/\.(docs|art\..+)$/.test(k) && !k.startsWith('__')).forEach(k => localStorage.removeItem('rev.' + k));
+    await pullLaws();
+    const { data: kv } = await sb.from('kv').select('key,value');
+    store.keys().filter(k => !/\.(docs|art\..+)$/.test(k)).forEach(k => localStorage.removeItem('rev.' + k));
     (kv || []).forEach(r => localStorage.setItem('rev.' + r.key, r.value));
     store.remote = true;
-    const toAdmin = () => { go('#/admin'); };
+    const toAdmin = () => { location.hash = '#/admin'; };
     ACT.addDoc = ACT.bulkImport = ACT.importDoc = toAdmin;
     ACT.syncAll = async () => {
       toast('Обновление');
@@ -1082,7 +1071,7 @@
       if (!await ask('Удалить документ?', 'Он исчезнет у всех пользователей.')) return;
       await sb.from('laws').delete().eq('id', b.dataset.id);
       await pullLaws();
-      go('#/legal');
+      location.hash = '#/legal';
       route();
     };
     ACT.adminImport = async () => {
@@ -1202,7 +1191,7 @@
     const it = palItems[i];
     if (!it) return;
     pal.close();
-    if (it.href) go(it.href); else it.run();
+    if (it.href) location.hash = it.href; else it.run();
   }
 
   function palMove(d) {
@@ -1227,11 +1216,11 @@
     },
     openDrawer() { app.classList.add('drawer'); },
     newTpl() { tplDialog(); },
-    login() { sessionStorage.setItem('rev.next', location.pathname + location.search); if (sb) sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + '/', queryParams: { prompt: 'consent' } } }); },
+    login() { sessionStorage.setItem('rev.next', location.hash); if (sb) sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + location.pathname, queryParams: { prompt: 'consent' } } }); },
     async logout() {
       if (!sb) return;
       await store.push();
-      store.keys().filter(k => !/\.(docs|art\..+)$/.test(k) && !k.startsWith('__')).forEach(k => localStorage.removeItem('rev.' + k));
+      store.keys().filter(k => !/\.(docs|art\..+)$/.test(k)).forEach(k => localStorage.removeItem('rev.' + k));
       await sb.auth.signOut();
     },
     addSec() { state.cur.doc.sections = (state.cur.doc.sections || []).concat({ t: '', x: '' }); state.cur.redraw(); },
@@ -1286,7 +1275,7 @@
       if (!await ask('Удалить документ?', 'Документ и загруженный текст исчезнут из списка.')) return;
       saveDocs(docs().filter(d => d.id !== b.dataset.id));
       store.del(skey('art.' + b.dataset.id));
-      go('#/legal');
+      location.hash = '#/legal';
     },
     copyArt(b) {
       const a = articlesOf(state.docId);
@@ -1339,7 +1328,7 @@
     async wipe() {
       if (!await ask('Очистить все данные?', 'Документы, памятки, профиль и загруженные законы будут удалены из этого браузера.', 'Очистить')) return;
       await store.clear();
-      go('#/legal');
+      location.hash = '#/legal';
       location.reload();
     }
   };
@@ -1350,7 +1339,7 @@
     [/^\/orgs$/, () => orgR('list')],
     [/^\/org\/([\w-]+)$/, m => orgR('board', { id: m[1] })],
     [/^\/org\/([\w-]+)\/templates$/, m => orgR('templates', m[1])],
-    [/^\/(?:v|o)\/([\w-]+)$/, m => orgR('board', { token: m[1] })],
+    [/^\/v\/([\w-]+)$/, m => orgR('board', { token: m[1] })],
     [/^\/org\/([\w-]+)\/settings$/, m => orgR('settings', m[1])],
     [/^\/org\/([\w-]+)\/forms$/, m => orgR('forms', m[1])],
     [/^\/org\/([\w-]+)\/forms\/([\w-]+)$/, m => orgR('formEdit', { id: m[1], fid: m[2] })],
@@ -1371,18 +1360,11 @@
     [/^\/settings(?:\/(data))?$/, m => viewSettings(m[1] || 'profile')]
   ];
 
-  function go(h) {
-    const p = String(h).replace(/^#/, '');
-    if (p !== location.pathname + location.search) history.pushState(null, '', p);
-    route();
-  }
-
   function route() {
-    const [path, qs] = ((location.pathname.replace(/\/+$/, '') || '/legal') + location.search).split('?');
+    const [path, qs] = (location.hash.slice(1) || '/legal').split('?');
     state.path = path;
     state.params = new URLSearchParams(qs || '');
     view.classList.remove('wide');
-    view.oninput = view.onchange = view.onmousedown = view.ondblclick = view.onclick = null;
     app.classList.toggle('guest', !!(sb && !state.user));
     if (sb && !state.user) { viewLogin(); return; }
     const hit = ROUTES.find(r => r[0].test(path));
@@ -1486,7 +1468,6 @@
         }
       });
     });
-    $$('a[href^="#/"]').forEach(x => x.setAttribute('href', x.getAttribute('href').slice(1)));
     $$('.tabbed:not([data-init])').forEach(w => {
       w.dataset.init = '1';
       const tab = w.querySelector(`[data-tab="${sessionStorage.getItem('rev.tab.' + state.path)}"]`) || w.querySelector('[data-tab]');
@@ -1505,13 +1486,13 @@
   });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') csClose(); });
 
-  window.REV = { go, pinch, store, skey, myDocs, saveMyDocs, createDoc, $, esc, icon, view, state, toast, copy, openDialog, dlg, ask, setCrumbs, notFound, fmtDate, uid, sanitize, rich, route, get sb() { return sb; } };
+  window.REV = { pinch, store, skey, myDocs, saveMyDocs, createDoc, $, esc, icon, view, state, toast, copy, openDialog, dlg, ask, setCrumbs, notFound, fmtDate, uid, sanitize, rich, route, get sb() { return sb; } };
 
   const select = $('#serverSelect');
   select.addEventListener('change', () => {
     state.server = select.value;
     store.set('server', state.server);
-    go('#/legal');
+    location.hash = '#/legal';
     route();
   });
 
@@ -1519,20 +1500,13 @@
   $('#menuBtn').innerHTML = icon('menu');
   $('#searchIcon').innerHTML = icon('search');
 
-  if (location.hash.startsWith('#/')) history.replaceState(null, '', location.hash.slice(1));
-  window.addEventListener('popstate', route);
-  document.addEventListener('click', e => {
-    const l = e.target.closest('a[href]');
-    const h = l && l.getAttribute('href');
-    if (!h || l.target || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-    if (h.startsWith('#/') || (h.startsWith('/') && !h.startsWith('//'))) { e.preventDefault(); go(h); }
-  });
+  const pm = location.pathname.match(/^\/(f|o)\/([\w-]+)\/?$/);
+  if (pm) history.replaceState(null, '', '/#/' + (pm[1] === 'o' ? 'v' : 'f') + '/' + pm[2]);
+  window.addEventListener('hashchange', route);
   bootstrap().then(() => {
     hydrate();
     select.innerHTML = SERVERS.map(s => `<option ${s === state.server ? 'selected' : ''}>${s}</option>`).join('');
     app.classList.toggle('collapsed', state.collapsed);
     route();
-    const bt = document.getElementById('boot');
-    if (bt) { bt.classList.add('done'); setTimeout(() => bt.remove(), 500); }
   });
 })();
