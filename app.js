@@ -175,7 +175,9 @@
     marker: '<path d="M9 11l4 4M4 20l4-1 11-11a2.1 2.1 0 0 0-3-3L5 16z"/>',
     folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
     link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
-    note: '<path d="M5 4h14v12l-5 5H5z"/><path d="M14 21v-5h5M8 9h8M8 13h4"/>'
+    note: '<path d="M5 4h14v12l-5 5H5z"/><path d="M14 21v-5h5M8 9h8M8 13h4"/>',
+    fit: '<path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/>',
+    minus: '<path d="M5 12h14"/>'
   };
 
   const NAV = [
@@ -536,7 +538,7 @@
       const m = (x1 + q.x) / 2;
       return `<path d="M${x1} ${y1}C${m} ${y1} ${m} ${q.y + 20} ${q.x} ${q.y + 20}"/>`;
     };
-    view.innerHTML = `<div class="board" id="board"><div class="board-inner" id="boardInner"><svg class="threads" width="1000" height="${y + 80}">${edges.map(link).join('')}</svg>${nodes.map((n, i) => `<button class="node ${n.k}" style="left:${n.x}px;top:${n.y}px;animation-delay:${i * 45}ms" data-id="${n.id}"><small>${esc(n.tag)}</small>${esc(n.l)}</button>`).join('')}</div><div class="board-bar"><div class="bar-group"><button class="bar-btn" data-z="fit" aria-label="По центру">${icon('search')}</button><button class="bar-btn" data-z="in" aria-label="Приблизить">${icon('plus')}</button><button class="bar-btn" data-z="out" aria-label="Отдалить">−</button></div><div class="bar-group"><a class="bar-btn" href="#/paperwork/new" aria-label="Новый документ">${icon('file')}</a></div></div></div>`;
+    view.innerHTML = `<div class="board" id="board"><div class="board-inner" id="boardInner"><svg class="threads" width="1000" height="${y + 80}">${edges.map(link).join('')}</svg>${nodes.map((n, i) => `<button class="node ${n.k}" style="left:${n.x}px;top:${n.y}px;animation-delay:${i * 45}ms" data-id="${n.id}"><small>${esc(n.tag)}</small>${esc(n.l)}</button>`).join('')}</div><div class="board-bar"><div class="bar-group"><button class="bar-btn" data-z="fit" aria-label="По центру">${icon('fit')}</button><button class="bar-btn" data-z="in" aria-label="Приблизить">${icon('plus')}</button><button class="bar-btn" data-z="out" aria-label="Отдалить">${icon('minus')}</button></div><div class="bar-group"><a class="bar-btn" href="#/paperwork/new" aria-label="Новый документ">${icon('file')}</a></div></div></div>`;
     const box = $('#board');
     const inner = $('#boardInner');
     const v = { x: 40, y: 60, k: innerWidth < 700 ? 0.7 : 1 };
@@ -1044,7 +1046,7 @@
     if (se) state.authError = se.message;
     state.user = session ? session.user : null;
     const nx = sessionStorage.getItem('rev.next');
-    if (state.user && nx) { sessionStorage.removeItem('rev.next'); history.replaceState(null, '', location.pathname + location.search + nx); }
+    if (state.user && nx) { sessionStorage.removeItem('rev.next'); history.replaceState(null, '', nx); }
     sb.auth.onAuthStateChange((ev, s) => { if ((s ? s.user.id : null) !== (state.user ? state.user.id : null)) location.reload(); });
     if (!state.user) return;
     const { data: p } = await sb.from('profiles').select('role,name,avatar').eq('id', state.user.id).single();
@@ -1216,7 +1218,7 @@
     },
     openDrawer() { app.classList.add('drawer'); },
     newTpl() { tplDialog(); },
-    login() { sessionStorage.setItem('rev.next', location.hash); if (sb) sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + location.pathname, queryParams: { prompt: 'consent' } } }); },
+    login() { sessionStorage.setItem('rev.next', location.pathname + location.search); if (sb) sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + '/', queryParams: { prompt: 'consent' } } }); },
     async logout() {
       if (!sb) return;
       await store.push();
@@ -1339,7 +1341,7 @@
     [/^\/orgs$/, () => orgR('list')],
     [/^\/org\/([\w-]+)$/, m => orgR('board', { id: m[1] })],
     [/^\/org\/([\w-]+)\/templates$/, m => orgR('templates', m[1])],
-    [/^\/v\/([\w-]+)$/, m => orgR('board', { token: m[1] })],
+    [/^\/(?:v|o)\/([\w-]+)$/, m => orgR('board', { token: m[1] })],
     [/^\/org\/([\w-]+)\/settings$/, m => orgR('settings', m[1])],
     [/^\/org\/([\w-]+)\/forms$/, m => orgR('forms', m[1])],
     [/^\/org\/([\w-]+)\/forms\/([\w-]+)$/, m => orgR('formEdit', { id: m[1], fid: m[2] })],
@@ -1361,7 +1363,7 @@
   ];
 
   function route() {
-    const [path, qs] = (location.hash.slice(1) || '/legal').split('?');
+    const [path, qs] = ((location.pathname.replace(/\/+$/, '') || '/legal') + location.search).split('?');
     state.path = path;
     state.params = new URLSearchParams(qs || '');
     view.classList.remove('wide');
@@ -1500,9 +1502,13 @@
   $('#menuBtn').innerHTML = icon('menu');
   $('#searchIcon').innerHTML = icon('search');
 
-  const pm = location.pathname.match(/^\/(f|o)\/([\w-]+)\/?$/);
-  if (pm) history.replaceState(null, '', '/#/' + (pm[1] === 'o' ? 'v' : 'f') + '/' + pm[2]);
-  window.addEventListener('hashchange', route);
+  if (location.hash.startsWith('#/')) history.replaceState(null, '', location.hash.slice(1));
+  window.addEventListener('hashchange', () => {
+    if (!location.hash.startsWith('#/')) return;
+    history.replaceState(null, '', location.hash.slice(1));
+    route();
+  });
+  window.addEventListener('popstate', () => { if (!location.hash.startsWith('#/')) route(); });
   bootstrap().then(() => {
     hydrate();
     select.innerHTML = SERVERS.map(s => `<option ${s === state.server ? 'selected' : ''}>${s}</option>`).join('');
