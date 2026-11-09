@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /$
+Disallow: /legal
+Disallow: /paperwork
+Disallow: /org/
+Disallow: /o/
+Disallow: /v/
+Disallow: /d/
+Disallow: /f/
+Disallow: /admin
+Disallow: /orgs
+Disallow: /board
+Disallow: /assistant
+Disallow: /handbook
+Disallow: /settings
+
+Sitemap: https://revolutione.space/sitemap.xml

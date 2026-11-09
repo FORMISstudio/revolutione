@@ -1,0 +1,12 @@
+{
+  "name": "revolutione",
+  "short_name": "revolutione",
+  "description": "Законы и документооборот для RP-серверов",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "lang": "ru",
+  "icons": [{ "src": "/favicon.png", "sizes": "256x256", "type": "image/png", "purpose": "any" }]
+}
