@@ -23,7 +23,7 @@
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="revolutione — законы и документооборот для RP-серверов">
 <meta name="twitter:description" content="Законы RP-серверов с поиском по статьям, документооборот организаций, конструктор шаблонов и формы с отправкой в Discord.">
-<link rel="icon" type="image/png" sizes="192x192" href="/favicon.png?v=3">
+<link rel="icon" type="image/png" href="/favicon.png?v=3">
 <link rel="shortcut icon" href="/favicon.png?v=3">
 <link rel="apple-touch-icon" href="/favicon.png?v=3">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -98,6 +98,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="/app.js"></script>
 <script src="/orgs.js"></script>
-<script src="https://formis.space/badge.js" data-position="center" defer></script>
+<script>
+if (window.matchMedia('(min-width: 900px)').matches) {
+  var fb = document.createElement('script');
+  fb.src = 'https://formis.space/badge.js';
+  fb.defer = true;
+  fb.setAttribute('data-position', 'center');
+  document.body.appendChild(fb);
+}
+</script>
 </body>
 </html>

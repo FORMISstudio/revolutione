@@ -318,7 +318,26 @@
     return d;
   };
   const saveDocs = d => store.set(skey('docs'), d);
-  const articlesOf = id => store.get(skey('art.' + id), null) || (!sb && DEMO[id]) || null;
+  const LAW = {};
+  const idb = () => new Promise((res, rej) => {
+    const r = indexedDB.open('revolutione', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('laws');
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+  const idbAll = async () => {
+    try {
+      const db = await idb();
+      return await new Promise(res => {
+        const m = new Map();
+        const c = db.transaction('laws').objectStore('laws').openCursor();
+        c.onsuccess = e => { const x = e.target.result; if (x) { m.set(x.key, x.value); x.continue(); } else res(m); };
+        c.onerror = () => res(new Map());
+      });
+    } catch { return new Map(); }
+  };
+  const idbPut = async (k, v) => { try { const db = await idb(); db.transaction('laws', 'readwrite').objectStore('laws').put(v, k); } catch { } };
+  const articlesOf = id => LAW[id] || store.get(skey('art.' + id), null) || (!sb && DEMO[id]) || null;
   const myDocs = () => store.get(skey('mydocs'), []);
   const saveMyDocs = d => store.set(skey('mydocs'), d);
   const notes = () => store.get(skey('notes'), []);
@@ -1002,14 +1021,32 @@
   const firstLine = t => (String(t).split('\n').find(l => l.trim()) || '').trim().slice(0, 90);
 
   async function pullLaws() {
-    const { data } = await sb.from('laws').select('*');
+    const { data: meta, error } = await sb.from('laws').select('id,server,title,grp,url,updated_at');
+    if (error) throw error;
+    const rows = meta || [];
     Object.keys(localStorage).filter(k => /^rev\..+\.(docs|art\..+)$/.test(k)).forEach(k => localStorage.removeItem(k));
     const by = {};
-    (data || []).forEach(r => (by[r.server] = by[r.server] || []).push(r));
-    Object.entries(by).forEach(([srv, rows]) => {
-      localStorage.setItem(`rev.${srv}.docs`, JSON.stringify(rows.map(r => ({ id: r.id, title: r.title, group: r.grp, url: r.url }))));
-      rows.forEach(r => localStorage.setItem(`rev.${srv}.art.${r.id}`, JSON.stringify({ items: r.items, src: r.url, at: Date.parse(r.updated_at) })));
+    rows.forEach(r => (by[r.server] = by[r.server] || []).push(r));
+    Object.entries(by).forEach(([srv, rs]) => {
+      try { localStorage.setItem(`rev.${srv}.docs`, JSON.stringify(rs.map(r => ({ id: r.id, title: r.title, group: r.grp, url: r.url })))); } catch { }
     });
+    const ids = new Set(rows.map(r => r.id));
+    Object.keys(LAW).forEach(k => { if (!ids.has(k)) delete LAW[k]; });
+    const cache = await idbAll();
+    const need = [];
+    rows.forEach(r => {
+      const c = cache.get(r.id);
+      if (c && c.updated_at === r.updated_at) LAW[r.id] = { items: c.items, src: r.url, at: Date.parse(r.updated_at) };
+      else need.push(r);
+    });
+    for (let i = 0; i < need.length; i += 8) {
+      const { data } = await sb.from('laws').select('id,items').in('id', need.slice(i, i + 8).map(r => r.id));
+      (data || []).forEach(x => {
+        const r = rows.find(y => y.id === x.id);
+        LAW[r.id] = { items: x.items, src: r.url, at: Date.parse(r.updated_at) };
+        idbPut(r.id, { items: x.items, updated_at: r.updated_at });
+      });
+    }
   }
 
   async function pullStore() { await pullLaws(); }
@@ -1047,27 +1084,7 @@
 
   const importResult = r => showErr(r.fail.length ? 'Импорт завершён с ошибками' : 'Импорт завершён', `Загружено документов: ${r.ok} из ${r.total}${r.fail.length ? '\n\nНе загрузилось:\n' + r.fail.join('\n\n') : ''}`);
 
-  async function bootstrapInner() {
-    const c = window.REV_CONFIG;
-    if (!c || !c.url || !window.supabase) return;
-    sb = window.supabase.createClient(c.url, c.key, { auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true } });
-    const { data: { session }, error: se } = await sb.auth.getSession();
-    if (se) state.authError = se.message;
-    state.user = session ? session.user : null;
-    const nx = sessionStorage.getItem('rev.next');
-    if (state.user && nx) { sessionStorage.removeItem('rev.next'); history.replaceState(null, '', nx); }
-    sb.auth.onAuthStateChange((ev, s) => { if ((s ? s.user.id : null) !== (state.user ? state.user.id : null)) location.reload(); });
-    if (!state.user) return;
-    const { data: p } = await sb.from('profiles').select('role,name,avatar').eq('id', state.user.id).single();
-    if (!p) toast('Профиль не создан: проверьте триггер в schema.sql');
-    state.role = (p && p.role) || 'user';
-    state.name = (p && p.name) || '';
-    state.avatar = (p && p.avatar) || '';
-    await pullLaws();
-    const { data: kv } = await sb.from('kv').select('key,value');
-    store.keys().filter(k => !/\.(docs|art\..+)$/.test(k)).forEach(k => localStorage.removeItem('rev.' + k));
-    (kv || []).forEach(r => localStorage.setItem('rev.' + r.key, r.value));
-    store.remote = true;
+  function installActs() {
     const toAdmin = () => { location.hash = '#/admin'; };
     ACT.addDoc = ACT.bulkImport = ACT.importDoc = toAdmin;
     ACT.syncAll = async () => {
@@ -1107,6 +1124,32 @@
         showErr('Ошибка импорта', e.message || String(e));
       } finally { b.disabled = false; }
     };
+  }
+
+  async function bootstrapInner() {
+    const c = window.REV_CONFIG;
+    if (!c || !c.url || !window.supabase) return;
+    sb = window.supabase.createClient(c.url, c.key, { auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true } });
+    const { data: { session }, error: se } = await sb.auth.getSession();
+    if (se) state.authError = se.message;
+    state.user = session ? session.user : null;
+    const nx = sessionStorage.getItem('rev.next');
+    if (state.user && nx) { sessionStorage.removeItem('rev.next'); history.replaceState(null, '', nx); }
+    sb.auth.onAuthStateChange((ev, s) => { if ((s ? s.user.id : null) !== (state.user ? state.user.id : null)) location.reload(); });
+    if (!state.user) return;
+    installActs();
+    const { data: p } = await sb.from('profiles').select('role,name,avatar').eq('id', state.user.id).single();
+    if (!p) toast('Профиль не создан: проверьте триггер в schema.sql');
+    state.role = (p && p.role) || 'user';
+    state.name = (p && p.name) || '';
+    state.avatar = (p && p.avatar) || '';
+    try { await pullLaws(); } catch (e) { toast('Не удалось загрузить законы'); }
+    let kv = [];
+    try { kv = (await sb.from('kv').select('key,value')).data || []; } catch { }
+    store.keys().filter(k => !/\.(docs|art\..+)$/.test(k)).forEach(k => localStorage.removeItem('rev.' + k));
+    (kv || []).forEach(r => localStorage.setItem('rev.' + r.key, r.value));
+    store.remote = true;
+
   }
 
   function hydrate() {
