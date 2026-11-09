@@ -895,30 +895,11 @@
           <label class="field"><span>Звание или должность</span><input name="rank" value="${esc(p.rank)}" placeholder="Офицер"></label>
           <label class="field"><span>Организация</span><input name="org" value="${esc(p.org)}" placeholder="LSPD"></label>
         </form>
-        <div class="divider"></div>
-        <h2>Резервная копия</h2>
-        <div class="actions">
-          <button class="btn" data-act="exportData">Скачать JSON</button>
-          <label class="btn" tabindex="0">Загрузить JSON<input type="file" id="importFile" accept="application/json" hidden></label>
-          <button class="btn danger" data-act="wipe">Очистить всё</button>
-        </div>
       </div>`;
     $('#profileForm').addEventListener('input', debounce(() => {
       store.set('profile', Object.fromEntries(new FormData($('#profileForm'))));
       renderFoot();
     }, 250));
-    $('#importFile').addEventListener('change', async e => {
-      const f = e.target.files[0];
-      if (!f) return;
-      try {
-        const data = JSON.parse(await f.text());
-        Object.entries(data).forEach(([k, v]) => { if (k.startsWith('rev.')) store.setRaw(k.slice(4), v); });
-        await store.push();
-        toast('Данные загружены');
-        location.reload();
-      } catch { toast('Файл не удалось прочитать'); }
-    });
-    $('.btn[tabindex]')?.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#importFile').click(); } });
   }
 
   function tplDialog() {
@@ -1317,21 +1298,6 @@
       if (!await ask('Удалить памятку?', 'Это действие нельзя отменить.')) return;
       saveNotes(notes().filter(n => n.id !== b.dataset.id));
       route();
-    },
-    exportData() {
-      const data = {};
-      Object.keys(localStorage).filter(k => k.startsWith('rev.')).forEach(k => { data[k] = localStorage.getItem(k); });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
-      a.download = 'revolutione-backup.json';
-      a.click();
-      URL.revokeObjectURL(a.href);
-    },
-    async wipe() {
-      if (!await ask('Очистить все данные?', 'Документы, памятки, профиль и загруженные законы будут удалены из этого браузера.', 'Очистить')) return;
-      await store.clear();
-      location.hash = '#/legal';
-      location.reload();
     }
   };
 
@@ -1378,6 +1344,8 @@
     renderFoot();
     app.classList.remove('drawer');
     document.title = 'revolutione';
+    const rm = document.querySelector('meta[name="robots"]');
+    if (rm) rm.content = 'noindex, nofollow';
   }
 
   document.addEventListener('click', e => {
@@ -1432,7 +1400,33 @@
     box.addEventListener('pointercancel', end);
   }
 
-  const csClose = () => $$('.cs.open').forEach(c => c.classList.remove('open'));
+  let csMenu = null;
+  let csSel = null;
+
+  const csClose = () => {
+    if (csMenu) csMenu.classList.remove('open');
+    $$('.cs.open').forEach(c => c.classList.remove('open'));
+    csSel = null;
+  };
+
+  function csOpen(w, sel) {
+    csClose();
+    if (!csMenu) { csMenu = document.createElement('div'); csMenu.className = 'cs-menu'; }
+    (w.closest('dialog') || document.body).append(csMenu);
+    csMenu.innerHTML = [...sel.options].map((x, i) => `<button type="button" class="cs-opt${i === sel.selectedIndex ? ' on' : ''}" data-i="${i}">${esc(x.text)}</button>`).join('');
+    const r = w.querySelector('.cs-btn').getBoundingClientRect();
+    csMenu.style.minWidth = r.width + 'px';
+    csMenu.style.maxWidth = Math.min(innerWidth - 16, 440) + 'px';
+    csMenu.classList.add('open');
+    const mh = csMenu.offsetHeight;
+    const mw = csMenu.offsetWidth;
+    csMenu.style.left = Math.max(8, Math.min(r.left, innerWidth - mw - 8)) + 'px';
+    const down = innerHeight - r.bottom - 12 >= mh || r.top < mh;
+    csMenu.style.top = down ? r.bottom + 6 + 'px' : 'auto';
+    csMenu.style.bottom = down ? 'auto' : innerHeight - r.top + 6 + 'px';
+    w.classList.add('open');
+    csSel = sel;
+  }
 
   function enhance() {
     $$('select:not([data-cs])').forEach(sel => {
@@ -1440,34 +1434,15 @@
       sel.classList.add('cs-native');
       const w = document.createElement('div');
       w.className = 'cs' + (sel.classList.contains('sm') ? ' sm' : '');
-      w.innerHTML = `<button type="button" class="cs-btn"><span></span>${icon('chevron')}</button><div class="cs-menu"></div>`;
+      w.innerHTML = `<button type="button" class="cs-btn"><span></span>${icon('chevron')}</button>`;
       sel.after(w);
       const txt = () => { w.querySelector('span').textContent = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : ''; };
       txt();
       sel.addEventListener('change', txt);
       new MutationObserver(txt).observe(sel, { childList: true });
       w.addEventListener('click', e => {
-        const b = e.target.closest('.cs-btn');
-        const o = e.target.closest('.cs-opt');
-        if (b) {
-          const was = w.classList.contains('open');
-          csClose();
-          if (was) return;
-          const m = w.querySelector('.cs-menu');
-          m.innerHTML = [...sel.options].map((x, i) => `<button type="button" class="cs-opt${i === sel.selectedIndex ? ' on' : ''}" data-i="${i}">${esc(x.text)}</button>`).join('');
-          const r = b.getBoundingClientRect();
-          const below = innerHeight - r.bottom > 220;
-          m.style.minWidth = r.width + 'px';
-          m.style.left = Math.max(8, Math.min(r.left, innerWidth - r.width - 12)) + 'px';
-          m.style.top = below ? r.bottom + 6 + 'px' : 'auto';
-          m.style.bottom = below ? 'auto' : innerHeight - r.top + 6 + 'px';
-          w.classList.add('open');
-        } else if (o) {
-          sel.selectedIndex = +o.dataset.i;
-          sel.dispatchEvent(new Event('input', { bubbles: true }));
-          sel.dispatchEvent(new Event('change', { bubbles: true }));
-          csClose();
-        }
+        if (!e.target.closest('.cs-btn')) return;
+        if (w.classList.contains('open')) csClose(); else csOpen(w, sel);
       });
     });
     $$('.tabbed:not([data-init])').forEach(w => {
@@ -1478,6 +1453,15 @@
   }
   new MutationObserver(() => requestAnimationFrame(enhance)).observe(document.body, { childList: true, subtree: true });
   document.addEventListener('click', e => {
+    const o = e.target.closest('.cs-opt');
+    if (o && csSel) {
+      const sl = csSel;
+      sl.selectedIndex = +o.dataset.i;
+      sl.dispatchEvent(new Event('input', { bubbles: true }));
+      sl.dispatchEvent(new Event('change', { bubbles: true }));
+      csClose();
+      return;
+    }
     if (!e.target.closest('.cs')) csClose();
     const b = e.target.closest('[data-tab]');
     if (!b) return;
@@ -1487,6 +1471,8 @@
     sessionStorage.setItem('rev.tab.' + state.path, b.dataset.tab);
   });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') csClose(); });
+  window.addEventListener('resize', csClose);
+  document.addEventListener('scroll', e => { if (csMenu && csMenu.classList.contains('open') && !csMenu.contains(e.target)) csClose(); }, true);
 
   window.REV = { pinch, store, skey, myDocs, saveMyDocs, createDoc, $, esc, icon, view, state, toast, copy, openDialog, dlg, ask, setCrumbs, notFound, fmtDate, uid, sanitize, rich, route, get sb() { return sb; } };
 
