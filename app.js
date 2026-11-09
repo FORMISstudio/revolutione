@@ -475,7 +475,7 @@
   function viewLogin() {
     app.classList.add('guest');
     setCrumbs([['revolutione']]);
-    view.innerHTML = `<div class="login"><div class="login-logo">revolutione<b>”</b></div><p>Законы и документооборот для RP-серверов. Войдите, чтобы продолжить.</p>${state.authError ? `<div class="notice err">${esc(state.authError)}</div>` : ''}<button class="btn primary big" data-act="login">Войти через Discord</button></div>`;
+    view.innerHTML = `<div class="login"><h1 class="login-logo">revolutione<b>”</b></h1><p>Законы RP-серверов с поиском по статьям, документооборот организаций, конструктор шаблонов и формы с отправкой в Discord.</p>${state.authError ? `<div class="notice err">${esc(state.authError)}</div>` : ''}<button class="btn primary big" data-act="login">Войти через Discord</button></div>`;
   }
 
   async function viewAdmin() {
@@ -490,6 +490,7 @@
         <label class="field"><span>Сервер</span><select id="admServer">${SERVERS.map(s => `<option ${s === state.server ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
         <label class="field"><span>Одна ссылка на сервер, например https://docossum.com/legal/memphis, и все его документы подтянутся сами. Можно и Google Документы.</span><textarea id="admLinks" rows="8" placeholder="https://docossum.com/legal/memphis"></textarea></label>
         <div class="actions"><button class="btn primary" id="admGo" data-act="adminImport">Импортировать</button></div>
+        <div class="dlg-status" id="admStatus"></div>
       </div>
       <div class="group-title">Документов в базе: ${laws.length}</div>
       <div class="list">${laws.map(x => `<div class="row"><span class="row-title">${esc(x.title)}</span><span class="row-meta">${esc(x.server)}, ${fmtDate(x.updated_at)}</span><button class="icon-btn danger" data-act="delDocRef" data-id="${x.id}" aria-label="Удалить">${icon('trash')}</button></div>`).join('') || '<div class="row"><span class="row-title">Пока пусто</span></div>'}</div>
@@ -1019,6 +1020,33 @@
     try { await bootstrapInner(); } catch (e) { state.authError = state.authError || String(e.message || e); }
   }
 
+  async function runImport(items, say) {
+    const list = [];
+    for (const it of items) {
+      if (/^https:\/\/docossum\.com\/legal\/[\w-]+\/?$/.test(it.url)) {
+        say('Ищу документы на Докосуме');
+        const { data, error } = await sb.functions.invoke('sync-docs', { body: { expand: it.url } });
+        if (error) throw new Error(await fnErr(error));
+        if (!data.docs || !data.docs.length) throw new Error('По ссылке ' + it.url + ' документов не найдено. Проверьте адрес сервера на Докосуме.');
+        data.docs.forEach(d => list.push({ server: it.server, url: d.url, title: d.title }));
+      } else list.push(it);
+    }
+    let ok = 0;
+    const fail = [];
+    for (let i = 0; i < list.length; i += 6) {
+      say(`Загружено ${i} из ${list.length}`);
+      const part = list.slice(i, i + 6);
+      const { data, error } = await sb.functions.invoke('sync-docs', { body: { items: part } });
+      if (error) { const m = await fnErr(error); part.forEach(x => fail.push(`${x.url} (${m})`)); continue; }
+      ok += data.ok;
+      fail.push(...data.fail);
+    }
+    say(`Готово: ${ok} из ${list.length}`);
+    return { ok, fail, total: list.length };
+  }
+
+  const importResult = r => showErr(r.fail.length ? 'Импорт завершён с ошибками' : 'Импорт завершён', `Загружено документов: ${r.ok} из ${r.total}${r.fail.length ? '\n\nНе загрузилось:\n' + r.fail.join('\n\n') : ''}`);
+
   async function bootstrapInner() {
     const c = window.REV_CONFIG;
     if (!c || !c.url || !window.supabase) return;
@@ -1043,12 +1071,15 @@
     const toAdmin = () => { location.hash = '#/admin'; };
     ACT.addDoc = ACT.bulkImport = ACT.importDoc = toAdmin;
     ACT.syncAll = async () => {
-      toast('Обновление');
-      const { data, error } = await sb.functions.invoke('sync-docs', { body: { all: true } });
-      if (error) { showErr('Ошибка обновления', await fnErr(error)); return; }
-      await pullLaws();
-      toast(`Обновлено: ${data.ok}`);
-      route();
+      toast('Обновление запущено');
+      try {
+        const { data: laws, error } = await sb.from('laws').select('url,title,server').not('url', 'is', null);
+        if (error) throw error;
+        const r = await runImport((laws || []).map(l => ({ server: l.server, url: l.url, title: l.title })), () => {});
+        await pullLaws();
+        importResult(r);
+        route();
+      } catch (e) { showErr('Ошибка обновления', e.message || String(e)); }
     };
     ACT.delDocRef = async b => {
       if (!await ask('Удалить документ?', 'Он исчезнет у всех пользователей.')) return;
@@ -1062,15 +1093,19 @@
       const items = $('#admLinks').value.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const q = l.split('|').map(x => x.trim()); return { server: srv, url: q[q.length - 1], title: q.length > 1 ? q[0] : '' }; });
       if (!items.length) { toast('Вставьте ссылки'); return; }
       const b = $('#admGo');
+      const st = $('#admStatus');
+      const say = t => { if (st) st.textContent = t; };
       b.disabled = true;
-      toast(`Импорт: ${items.length}`);
-      const { data, error } = await sb.functions.invoke('sync-docs', { body: { items } });
-      b.disabled = false;
-      if (error) { showErr('Ошибка импорта', await fnErr(error)); return; }
-      await pullLaws();
-      toast(`Готово: ${data.ok}, ошибок: ${data.fail.length}`);
-      if (data.fail.length) showErr('Не загрузилось', data.fail.join('\n\n'));
-      route();
+      say('Запуск');
+      try {
+        const r = await runImport(items, say);
+        await pullLaws();
+        importResult(r);
+        route();
+      } catch (e) {
+        say('');
+        showErr('Ошибка импорта', e.message || String(e));
+      } finally { b.disabled = false; }
     };
   }
 
@@ -1497,7 +1532,7 @@
   window.addEventListener('popstate', () => { if (!location.hash.startsWith('#/')) route(); });
   bootstrap().then(() => {
     hydrate();
-    select.innerHTML = SERVERS.map(s => `<option ${s === state.server ? 'selected' : ''}>${s}</option>`).join('');
+    if (!(sb && !state.user)) select.innerHTML = SERVERS.map(s => `<option ${s === state.server ? 'selected' : ''}>${s}</option>`).join('');
     app.classList.toggle('collapsed', state.collapsed);
     route();
   });
