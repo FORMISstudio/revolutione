@@ -202,7 +202,8 @@
     },
     {
       id: 'assistant', label: 'Ассистент', icon: 'spark', items: [
-        { label: 'Подбор статей', href: '#/assistant' }
+        { label: 'Подбор статей', href: '#/assistant' },
+        { label: 'Быстрый помощник', href: '#/quick' }
       ]
     },
     {
@@ -489,6 +490,50 @@
       });
     });
     return out.sort((a, b) => b.s - a.s).slice(0, limit);
+  }
+
+  function viewQuick() {
+    app.classList.add('quick');
+    setCrumbs([['Быстрый помощник']]);
+    view.innerHTML = `<div class="qk">
+      <div class="qk-head"><span class="qk-logo">revolutione<b>”</b></span><span class="qk-srv">${esc(state.server)}</span><button class="icon-btn" id="qkHide" aria-label="Скрыть" hidden>×</button></div>
+      <div class="search-field">${icon('search')}<input class="input" id="qkInput" placeholder="Статья, ситуация или заготовка" autocomplete="off"></div>
+      <div id="qkOut"></div>
+      <details class="qk-add"><summary>Новая заготовка</summary><form id="qkForm"><input class="input" name="t" placeholder="Название" required><textarea class="input" name="x" rows="3" placeholder="Текст, который копируется" required></textarea><button class="btn primary">Сохранить</button></form></details>
+    </div>`;
+    const input = $('#qkInput');
+    const paint = () => {
+      const q = input.value.trim();
+      const sn = store.get(skey('snips'), []).filter(x => !q || lower(x.t + ' ' + x.x).includes(lower(q)));
+      let arts = [];
+      if (q) {
+        arts = /^\d+(\.\d+)*$/.test(q)
+          ? docs().flatMap(d => { const a = articlesOf(d.id); return a ? a.items.filter(it => it.n === q).map(it => ({ d, it })) : []; })
+          : rank(q, 8);
+      }
+      const sHtml = sn.length ? `<div class="group-title">Заготовки</div>${sn.map(x => `<div class="qk-card"><div class="qk-top"><b>${esc(x.t)}</b><span><button class="icon-btn" data-act="qkCopy" data-k="s:${x.id}" aria-label="Копировать">${icon('copy')}</button><button class="icon-btn danger" data-act="qkDel" data-id="${x.id}" aria-label="Удалить">${icon('trash')}</button></span></div><p>${esc(x.x)}</p></div>`).join('')}` : '';
+      const aHtml = arts.length ? `<div class="group-title">Статьи</div>${arts.map(r => `<div class="qk-card"><div class="qk-top"><b>Статья ${esc(r.it.n)}. ${esc(r.it.title)}</b><button class="icon-btn" data-act="qkCopy" data-k="a:${r.d.id}:${esc(r.it.n)}" aria-label="Копировать">${icon('copy')}</button></div><small>${esc(r.d.title)}</small><p>${esc(r.it.text.slice(0, 220))}${r.it.text.length > 220 ? '…' : ''}</p></div>`).join('')}` : '';
+      $('#qkOut').innerHTML = sHtml + aHtml || '<div class="empty"><p>Введите номер статьи или ситуацию, либо добавьте заготовку</p></div>';
+    };
+    state.qkPaint = paint;
+    input.addEventListener('input', debounce(paint, 100));
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { const b = $('#qkOut [data-act="qkCopy"]'); if (b) b.click(); }
+      if (e.key === 'Escape' && window.overlay) window.overlay.hide();
+    });
+    $('#qkForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const v = Object.fromEntries(new FormData(e.target));
+      store.set(skey('snips'), [...store.get(skey('snips'), []), { id: uid(), t: v.t.trim(), x: v.x.trim() }]);
+      e.target.reset();
+      paint();
+      toast('Заготовка сохранена');
+    });
+    const hideBtn = $('#qkHide');
+    if (window.overlay) { hideBtn.hidden = false; hideBtn.onclick = () => window.overlay.hide(); }
+    window.onfocus = () => { const i = $('#qkInput'); if (i) i.focus(); };
+    paint();
+    input.focus();
   }
 
   function viewLogin() {
@@ -1277,6 +1322,14 @@
     },
     openDrawer() { app.classList.add('drawer'); },
     newTpl() { tplDialog(); },
+    qkCopy(b) {
+      const [t, a, c] = b.dataset.k.split(':');
+      if (t === 's') { const x = store.get(skey('snips'), []).find(y => y.id === a); if (x) copy(x.x, 'Скопировано'); return; }
+      const art = articlesOf(a);
+      const it = art && art.items.find(y => y.n === c);
+      if (it) copy(`Статья ${it.n}. ${it.title}\n${it.text}`, 'Статья скопирована');
+    },
+    qkDel(b) { store.set(skey('snips'), store.get(skey('snips'), []).filter(x => x.id !== b.dataset.id)); if (state.qkPaint) state.qkPaint(); },
     login() { sessionStorage.setItem('rev.next', location.pathname + location.search); if (sb) sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + '/', queryParams: { prompt: 'consent' } } }); },
     async logout() {
       if (!sb) return;
@@ -1399,6 +1452,7 @@
     [/^\/paperwork\/new$/, () => locR('pnew')],
     [/^\/paperwork\/templates$/, () => locR('ptemplates')],
     [/^\/paperwork\/edit\/([\w-]+)$/, m => locR('pdoc', m[1])],
+    [/^\/quick$/, viewQuick],
     [/^\/admin$/, viewAdmin],
     [/^\/board$/, viewBoard],
     [/^\/assistant$/, viewAssistant],
@@ -1411,6 +1465,7 @@
     state.path = path;
     state.params = new URLSearchParams(qs || '');
     view.classList.remove('wide');
+    app.classList.remove('quick');
     app.classList.toggle('guest', !!(sb && !state.user));
     if (sb && !state.user) { viewLogin(); return; }
     const hit = ROUTES.find(r => r[0].test(path));
@@ -1552,6 +1607,88 @@
   window.addEventListener('resize', csClose);
   document.addEventListener('scroll', e => { if (csMenu && csMenu.classList.contains('open') && !csMenu.contains(e.target)) csClose(); }, true);
 
+  function flakeSprite(v) {
+    const S = 96;
+    const R = 42;
+    const c = document.createElement('canvas');
+    c.width = c.height = S;
+    const x = c.getContext('2d');
+    x.translate(S / 2, S / 2);
+    x.strokeStyle = 'rgba(255,255,255,0.95)';
+    x.lineWidth = 3;
+    x.lineCap = 'round';
+    x.lineJoin = 'round';
+    const cfg = [[[0.55, 0.32, 50]], [[0.4, 0.26, 50], [0.7, 0.3, 50]], [[0.35, 0.22, 55], [0.6, 0.34, 45], [0.85, 0.16, 40]]][v];
+    x.beginPath();
+    for (let i = 0; i < 6; i++) {
+      x.save();
+      x.rotate(i * Math.PI / 3);
+      x.moveTo(0, 0);
+      x.lineTo(0, -R);
+      cfg.forEach(([y, l, a]) => {
+        const r = a * Math.PI / 180;
+        [-1, 1].forEach(k => { x.moveTo(0, -R * y); x.lineTo(k * R * l * Math.sin(r), -R * y - R * l * Math.cos(r)); });
+      });
+      x.restore();
+    }
+    x.stroke();
+    return c;
+  }
+
+  function newYear() {
+    const mode = (window.REV_CONFIG || {}).newYear;
+    const d = new Date();
+    const auto = d.getMonth() === 11 || (d.getMonth() === 0 && d.getDate() <= 15) || /[?&]ny=1\b/.test(location.search);
+    const on = mode === 'off' || mode === false ? false : mode === 'on' || mode === true ? true : auto;
+    document.documentElement.classList.toggle('ny', on);
+    if (!on || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const cv = document.createElement('canvas');
+    cv.id = 'snow';
+    document.body.append(cv);
+    const ctx = cv.getContext('2d');
+    const sprites = [0, 1, 2].map(flakeSprite);
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    let W = 0;
+    let H = 0;
+    let flakes = [];
+    const make = top => ({ x: rnd(0, W), y: top ? -20 : rnd(0, H), r: rnd(7, 17), vy: rnd(0.35, 1.1), ph: rnd(0, 6.3), sw: rnd(0.2, 0.7), rot: rnd(0, 6.3), vr: rnd(-0.012, 0.012), a: rnd(0.35, 0.85), s: Math.floor(rnd(0, 3)) });
+    const size = keep => {
+      const k = Math.min(devicePixelRatio || 1, 2);
+      W = innerWidth;
+      H = innerHeight;
+      cv.width = W * k;
+      cv.height = H * k;
+      ctx.setTransform(k, 0, 0, k, 0, 0);
+      if (!keep || !flakes.length) flakes = Array.from({ length: Math.max(22, Math.min(55, Math.round(W / 30))) }, () => make(false));
+    };
+    size(false);
+    addEventListener('resize', () => size(innerWidth === W));
+    let last = performance.now();
+    const tick = t => {
+      const dt = Math.min(40, t - last) / 16;
+      last = t;
+      if (!document.hidden) {
+        ctx.clearRect(0, 0, W, H);
+        flakes.forEach((f, i) => {
+          f.y += f.vy * dt;
+          f.ph += 0.012 * dt;
+          f.x += Math.sin(f.ph) * f.sw * dt;
+          f.rot += f.vr * dt;
+          if (f.y > H + 20) flakes[i] = make(true);
+          ctx.save();
+          ctx.globalAlpha = f.a;
+          ctx.translate(f.x, f.y);
+          ctx.rotate(f.rot);
+          ctx.drawImage(sprites[f.s], -f.r, -f.r, f.r * 2, f.r * 2);
+          ctx.restore();
+        });
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    if (!sessionStorage.getItem('rev.nyhi')) { sessionStorage.setItem('rev.nyhi', '1'); setTimeout(() => toast('С наступающим Новым годом!'), 1800); }
+  }
+
   window.REV = { pinch, store, skey, myDocs, saveMyDocs, createDoc, $, esc, icon, view, state, toast, copy, openDialog, dlg, ask, setCrumbs, notFound, fmtDate, uid, sanitize, rich, route, get sb() { return sb; } };
 
   const select = $('#serverSelect');
@@ -1573,6 +1710,7 @@
     route();
   });
   window.addEventListener('popstate', () => { if (!location.hash.startsWith('#/')) route(); });
+  newYear();
   bootstrap().then(() => {
     hydrate();
     if (!(sb && !state.user)) select.innerHTML = SERVERS.map(s => `<option ${s === state.server ? 'selected' : ''}>${s}</option>`).join('');
