@@ -225,7 +225,7 @@
     const m = state.path.match(/^\/org\/([\w-]+)/);
     if (!m) return [];
     const b = '#/org/' + m[1];
-    return [{ id: 'org', label: 'Организация', icon: 'scale', items: [{ label: 'Доска', href: b }, { label: 'Шаблоны', href: b + '/templates' }, { label: 'Формы', href: b + '/forms' }, { label: 'Журнал', href: b + '/audit' }, { label: 'Настройки', href: b + '/settings' }] }];
+    return [{ id: 'org', label: 'Организация', icon: 'scale', items: [{ label: 'Доска', href: b }, { label: 'Шаблоны', href: b + '/templates' }, { label: 'Формы', href: b + '/forms' }, { label: 'Заявки', href: b + '/applications' }, { label: 'Портал', href: b + '/portal' }, { label: 'Журнал', href: b + '/audit' }, { label: 'Настройки', href: b + '/settings' }] }];
   };
   const LAWACT = ['addDoc', 'bulkImport', 'syncAll'];
   const canEdit = () => !sb || state.role === 'admin';
@@ -1433,6 +1433,7 @@
   };
 
   const locR = (f, x) => (window.ORG ? window.ORG[f](x) : setTimeout(route, 80));
+  const portalR = (f, a) => (window.PORTAL && sb ? window.PORTAL[f](a) : setTimeout(route, 80));
   const orgR = (f, a) => (window.ORG && sb ? window.ORG[f](a) : setTimeout(route, 80));
   const ROUTES = [
     [/^\/orgs$/, () => orgR('list')],
@@ -1444,6 +1445,9 @@
     [/^\/org\/([\w-]+)\/forms\/([\w-]+)$/, m => orgR('formEdit', { id: m[1], fid: m[2] })],
     [/^\/org\/([\w-]+)\/audit$/, m => orgR('auditView', m[1])],
     [/^\/f\/([\w-]+)$/, m => orgR('formPublic', m[1])],
+    [/^\/p\/([\w-]+)$/, m => portalR('portal', m[1])],
+    [/^\/org\/([\w-]+)\/applications$/, m => portalR('applications', m[1])],
+    [/^\/org\/([\w-]+)\/portal$/, m => portalR('portalAdmin', m[1])],
     [/^\/org\/([\w-]+)\/doc\/([\w-]+)$/, m => orgR('doc', { id: m[1], node: m[2] })],
     [/^\/d\/([\w-]+)\/([\w-]+)$/, m => orgR('doc', { token: m[1], node: m[2] })],
     [/^\/legal(?:\/(k|z|u))?$/, m => viewLegal(m[1])],
