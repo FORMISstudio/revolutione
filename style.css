@@ -744,3 +744,13 @@ html.ny .app { position: relative; z-index: 1; }
 html.ny .login { position: relative; }
 html.ny .login::before { content: ""; position: absolute; left: 50%; top: 50%; width: min(560px, 92vw); aspect-ratio: 1; transform: translate(-50%, -50%); background: var(--flake) no-repeat center / contain; opacity: 0.07; pointer-events: none; }
 html.ny .login > * { position: relative; z-index: 1; }
+
+
+.portal { max-width: 760px; margin: 0 auto; --brand: var(--accent); }
+.p-hero { padding: 24px 0 22px; margin-bottom: 8px; border-bottom: 2px solid var(--brand); }
+.p-logo { max-height: 60px; max-width: 60%; object-fit: contain; display: block; margin-bottom: 14px; }
+.p-hero h1 { font-size: clamp(30px, 6vw, 48px); font-weight: 600; letter-spacing: -0.04em; line-height: 1.1; }
+.p-hero p { color: var(--muted); font-size: 17px; font-weight: 300; margin-top: 12px; max-width: 60ch; }
+.pf .gcard { text-decoration: none; }
+.pf .gcard:hover { border-color: var(--brand); }
+.pf .gcard span { font-size: 13px; }
